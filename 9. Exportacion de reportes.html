@@ -1,0 +1,3287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADING ANALYTICS | EXPORTADOR DE REPORTES</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Simple Statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <!-- SheetJS para Excel/CSV -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- jsPDF para futura implementación PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* ===== ESTILOS CYBERPUNK (MISMO QUE PROGRAMAS ANTERIORES) ===== */
+        :root {
+            --bg-1: #06060a;
+            --bg-2: #0b0011;
+            --neon-cyan: #00f0ff;
+            --neon-blue: #6f5cff;
+            --neon-magenta: #ff4cff;
+            --neon-green: #00ff88;
+            --neon-red: #ff5555;
+            --neon-yellow: #ffff00;
+            --neon-orange: #ff8c00;
+            --neon-purple: #a855f7;
+            --muted: rgba(230, 238, 248, 0.55);
+            --card-bg: rgba(20, 20, 40, 0.85);
+            --glow-cyan: 0 0 10px rgba(0, 240, 255, 0.5);
+            --glow-green: 0 0 10px rgba(0, 255, 136, 0.5);
+            --glow-red: 0 0 10px rgba(255, 85, 85, 0.5);
+            --glow-yellow: 0 0 10px rgba(255, 255, 0, 0.5);
+            --radius: 8px;
+            --border-thin: 1px solid rgba(0, 240, 255, 0.2);
+            font-family: 'Segoe UI', 'Courier New', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-1);
+            color: #dfefff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.03) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 255, 0.03) 0%, transparent 20%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .app-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            border-bottom: var(--border-thin);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            animation: scanline 3s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: var(--glow-cyan);
+            letter-spacing: 1px;
+        }
+
+        .system-info {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+        }
+
+        .info-badge {
+            background: rgba(0, 240, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: var(--border-thin);
+        }
+
+        /* MAIN LAYOUT */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .section-title {
+            color: var(--neon-cyan);
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: var(--border-thin);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* IMPORT PANEL */
+        .import-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .file-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .file-type-btn {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            height: 70px;
+        }
+
+        .file-type-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            transform: translateY(-2px);
+        }
+
+        .file-type-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .file-type-icon {
+            font-size: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue));
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(90deg, var(--neon-green), rgba(0, 255, 136, 0.7));
+            color: #000;
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, var(--neon-red), rgba(255, 85, 85, 0.7));
+            color: #000;
+        }
+
+        .btn-warning {
+            background: linear-gradient(90deg, var(--neon-yellow), rgba(255, 255, 0, 0.7));
+            color: #000;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* DATA STATS */
+        .data-stats {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.05);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat-value {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* CONFIGURATION PANEL */
+        .config-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-label {
+            color: var(--muted);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .config-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            padding: 10px;
+            color: var(--neon-cyan);
+            font-family: inherit;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* SLIDER WITH VALUE */
+        .slider-with-value {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .slider-value {
+            min-width: 70px;
+            text-align: center;
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: 14px;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            outline: none;
+            margin: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        /* SIMULATION CONTROLS */
+        .sim-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* RESULTS PANEL */
+        .results-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .result-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            text-align: center;
+            transition: all 0.3s;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .result-card:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .result-title {
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .result-subtext {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* CHARTS SECTION */
+        .charts-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .chart-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: var(--border-thin);
+            flex-wrap: wrap;
+        }
+
+        .chart-tab {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .chart-tab:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .chart-tab.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .chart-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .chart-wrapper {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            height: 400px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-title {
+            color: var(--neon-cyan);
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* SCENARIO SELECTOR */
+        .scenario-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .scenario-btn {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .scenario-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .scenario-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* ADVANCED OPTIONS */
+        .advanced-options {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: var(--border-thin);
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .option-label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* SWITCH TOGGLE */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--neon-cyan);
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* EXPORT PANEL */
+        .export-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .export-formats {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .format-btn {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .format-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+        }
+
+        .format-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* UTILITIES */
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--neon-cyan), var(--neon-magenta));
+            border-radius: 3px;
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .scenario-selector {
+                grid-template-columns: 1fr;
+            }
+            
+            .sim-controls {
+                flex-direction: column;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+
+        /* NEW STYLES SPECIFIC TO REPORT EXPORTER */
+        .report-type-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .report-type-btn {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .report-type-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .report-type-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .content-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .content-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .content-option:hover {
+            background: rgba(0, 240, 255, 0.05);
+            border-color: var(--neon-cyan);
+        }
+
+        .content-option.selected {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: var(--neon-cyan);
+        }
+
+        .content-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--neon-cyan);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .content-checkbox.checked::after {
+            content: '✓';
+            color: var(--neon-cyan);
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .content-label {
+            flex: 1;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .content-label .description {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 2px;
+        }
+
+        .table-preview {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .table-preview table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .table-preview th {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            position: sticky;
+            top: 0;
+        }
+
+        .table-preview td {
+            padding: 6px 8px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.05);
+            color: var(--muted);
+        }
+
+        .table-preview tr:hover {
+            background: rgba(0, 240, 255, 0.05);
+        }
+
+        .report-summary {
+            background: linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(168, 85, 247, 0.1));
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .summary-section {
+            margin-bottom: 20px;
+        }
+
+        .summary-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .summary-title {
+            color: var(--neon-cyan);
+            font-size: 14px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .metric-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .metric-label {
+            font-size: 10px;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--neon-green);
+        }
+
+        .metric-value.negative {
+            color: var(--neon-red);
+        }
+
+        .metric-value.neutral {
+            color: var(--neon-yellow);
+        }
+
+        .export-progress {
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            margin: 15px 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .export-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .export-progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.3), 
+                transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .export-status {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        .filename-input {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .filename-input input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            padding: 10px;
+            color: var(--neon-cyan);
+            font-family: inherit;
+        }
+
+        .filename-input input:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .batch-export {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .batch-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .batch-option {
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 11px;
+        }
+
+        .batch-option:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .batch-option.selected {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .charts-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .chart-preview-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            text-align: center;
+        }
+
+        .chart-preview-title {
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .chart-preview-placeholder {
+            height: 100px;
+            background: rgba(0, 240, 255, 0.05);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div style="width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(45deg, var(--neon-cyan), var(--neon-magenta));"></div>
+                <div>
+                    <h1>TRADING ANALYTICS | EXPORTADOR DE REPORTES</h1>
+                    <div style="font-size: 12px; color: var(--muted);">Exportación profesional de datos y métricas de trading</div>
+                </div>
+            </div>
+            <div class="system-info">
+                <div class="info-badge">
+                    <span>📊</span> Estado: <strong id="systemStatus" style="color: var(--neon-yellow);">Esperando datos</strong>
+                </div>
+                <div class="info-badge">
+                    <span>⚡</span> Programa: <strong style="color: var(--neon-cyan);">9/9</strong>
+                </div>
+                <div class="info-badge">
+                    <span>🔗</span> Conexión: <strong id="connectionStatus" style="color: var(--neon-green);">Standalone</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- === SECCIÓN DE IMPORTACIÓN === -->
+                <div class="import-panel">
+                    <div class="section-title">
+                        <span>📤</span> IMPORTAR DATOS PARA REPORTE
+                    </div>
+                    
+                    <div class="file-types">
+                        <div class="file-type-btn active" data-type="risk" id="riskBtn">
+                            <div class="file-type-icon">🎯</div>
+                            <div>Calculadora de Riesgo</div>
+                            <input type="file" id="riskInput" class="file-input" accept=".json">
+                        </div>
+                        <div class="file-type-btn" data-type="management" id="managementBtn">
+                            <div class="file-type-icon">💰</div>
+                            <div>Gestión de Cuenta</div>
+                            <input type="file" id="managementInput" class="file-input" accept=".json">
+                        </div>
+                        <div class="file-type-btn" data-type="simulation" id="simulationBtn">
+                            <div class="file-type-icon">📈</div>
+                            <div>Simulación</div>
+                            <input type="file" id="simulationInput" class="file-input" accept=".json">
+                        </div>
+                        <div class="file-type-btn" data-type="trades" id="tradesBtn">
+                            <div class="file-type-icon">💹</div>
+                            <div>Trades Históricos</div>
+                            <input type="file" id="tradesInput" class="file-input" accept=".json">
+                        </div>
+                    </div>
+
+                    <div class="data-stats" id="importStats">
+                        <div class="stat-item">
+                            <span class="stat-label">Fuente:</span>
+                            <span class="stat-value" id="dataSource">Ninguna</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Tipo:</span>
+                            <span class="stat-value" id="dataType">N/A</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Registros:</span>
+                            <span class="stat-value" id="dataRecords">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Estado:</span>
+                            <span class="stat-value" id="importStatus" style="color: var(--neon-yellow);">Pendiente</span>
+                        </div>
+                    </div>
+
+                    <!-- Preview de datos importados -->
+                    <div class="table-preview" id="dataPreview" style="display: none;">
+                        <div style="font-size: 11px; color: var(--neon-cyan); margin-bottom: 10px;">Vista previa de datos:</div>
+                        <table id="previewTable">
+                            <thead>
+                                <tr>
+                                    <th>Campo</th>
+                                    <th>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewTableBody">
+                                <!-- Los datos se llenarán dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- === FIN SECCIÓN IMPORTACIÓN === -->
+
+                <!-- 9.1 TIPOS DE REPORTE -->
+                <div class="config-panel">
+                    <div class="section-title">
+                        <span>📄</span> 9.1 TIPOS DE REPORTE
+                    </div>
+                    
+                    <div class="report-type-selector">
+                        <!-- 9.1.1 CSV -->
+                        <div class="report-type-btn active" data-type="csv" id="csvBtn">
+                            <div style="font-size: 14px;">📊</div>
+                            <div style="font-size: 11px; margin-top: 5px;">9.1.1 CSV</div>
+                            <div style="font-size: 9px; color: var(--muted);">Excel/Spreadsheets</div>
+                        </div>
+                        
+                        <!-- 9.1.2 JSON -->
+                        <div class="report-type-btn" data-type="json" id="jsonBtn">
+                            <div style="font-size: 14px;">🔷</div>
+                            <div style="font-size: 11px; margin-top: 5px;">9.1.2 JSON</div>
+                            <div style="font-size: 9px; color: var(--muted);">Estructurado/APIs</div>
+                        </div>
+                        
+                        <!-- 9.1.3 PDF -->
+                        <div class="report-type-btn" data-type="pdf" id="pdfBtn">
+                            <div style="font-size: 14px;">📄</div>
+                            <div style="font-size: 11px; margin-top: 5px;">9.1.3 PDF</div>
+                            <div style="font-size: 9px; color: var(--muted); color: var(--neon-yellow);">(Futuro)</div>
+                        </div>
+                    </div>
+
+                    <!-- Opciones específicas por tipo -->
+                    <div id="csvOptions" style="margin-top: 15px;">
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>🔧</span> Opciones CSV
+                            </div>
+                            <div class="option-row">
+                                <span class="option-label">Separador:</span>
+                                <select id="csvSeparator" class="config-input" style="width: 100px;">
+                                    <option value=",">Coma (,)</option>
+                                    <option value=";">Punto y coma (;)</option>
+                                    <option value="\t">Tabulador</option>
+                                </select>
+                            </div>
+                            <div class="option-row">
+                                <span class="option-label">Incluir encabezados</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="csvHeaders" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="option-row">
+                                <span class="option-label">Formato decimal:</span>
+                                <select id="csvDecimal" class="config-input" style="width: 100px;">
+                                    <option value=".">Punto (.)</option>
+                                    <option value=",">Coma (,)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="jsonOptions" style="margin-top: 15px; display: none;">
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>🔧</span> Opciones JSON
+                            </div>
+                            <div class="option-row">
+                                <span class="option-label">Formato:</span>
+                                <select id="jsonFormat" class="config-input" style="width: 120px;">
+                                    <option value="pretty">Pretty (legible)</option>
+                                    <option value="compact">Compacto</option>
+                                    <option value="minified">Minificado</option>
+                                </select>
+                            </div>
+                            <div class="option-row">
+                                <span class="option-label">Incluir metadatos</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="jsonMetadata" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="pdfOptions" style="margin-top: 15px; display: none;">
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>🔧</span> Opciones PDF (Próximamente)
+                            </div>
+                            <div style="padding: 15px; background: rgba(255, 255, 0, 0.1); border-radius: 4px; border: 1px solid rgba(255, 255, 0, 0.3);">
+                                <div style="font-size: 11px; color: var(--neon-yellow); text-align: center;">
+                                    🚧 Función en desarrollo<br>
+                                    <small>Disponible en próxima versión</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9.2 CONTENIDO -->
+                <div class="results-panel">
+                    <div class="section-title">
+                        <span>📋</span> 9.2 CONTENIDO DEL REPORTE
+                    </div>
+                    
+                    <div class="content-selector">
+                        <!-- 9.2.1 Tabla de trades completa -->
+                        <div class="content-option selected" data-content="trades">
+                            <div class="content-checkbox checked"></div>
+                            <div class="content-label">
+                                <div>9.2.1 Tabla de Trades Completa</div>
+                                <div class="description">Todos los trades con detalles completos</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 9.2.2 Métricas básicas -->
+                        <div class="content-option selected" data-content="basic">
+                            <div class="content-checkbox checked"></div>
+                            <div class="content-label">
+                                <div>9.2.2 Métricas Básicas</div>
+                                <div class="description">Win Rate, Profit Factor, Drawdown</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 9.2.3 Métricas avanzadas -->
+                        <div class="content-option selected" data-content="advanced">
+                            <div class="content-checkbox checked"></div>
+                            <div class="content-label">
+                                <div>9.2.3 Métricas Avanzadas</div>
+                                <div class="description">Sharpe, Sortino, Expectancy, Kelly</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 9.2.4 Gráficas principales -->
+                        <div class="content-option selected" data-content="charts">
+                            <div class="content-checkbox checked"></div>
+                            <div class="content-label">
+                                <div>9.2.4 Gráficas Principales</div>
+                                <div class="description">Equity curve, distribución trades</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Opciones avanzadas de contenido -->
+                    <div class="advanced-options">
+                        <div class="option-row">
+                            <span class="option-label">Incluir resumen ejecutivo</span>
+                            <label class="switch">
+                                <input type="checkbox" id="includeSummary" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="option-row">
+                            <span class="option-label">Incluir recomendaciones</span>
+                            <label class="switch">
+                                <input type="checkbox" id="includeRecommendations" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="option-row">
+                            <span class="option-label">Comprimir archivos</span>
+                            <label class="switch">
+                                <input type="checkbox" id="compressFiles">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Nombre del archivo -->
+                    <div class="filename-input">
+                        <input type="text" id="reportFilename" placeholder="nombre_del_reporte" value="reporte_trading">
+                        <select id="reportExtension" class="config-input" style="width: 100px;">
+                            <option value="auto">Auto</option>
+                            <option value="csv">.csv</option>
+                            <option value="json">.json</option>
+                            <option value="xlsx">.xlsx</option>
+                        </select>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="sim-controls">
+                        <button class="btn btn-primary" id="generateReportBtn" disabled>
+                            <span>⚡</span> Generar Reporte
+                        </button>
+                        <button class="btn btn-secondary" id="previewReportBtn" disabled>
+                            <span>👁️</span> Vista Previa
+                        </button>
+                    </div>
+
+                    <!-- Progreso de exportación -->
+                    <div id="exportProgress" style="display: none; margin-top: 15px;">
+                        <div class="export-status">
+                            <span id="exportStep">Preparando datos...</span>
+                            <span id="exportPercent">0%</span>
+                        </div>
+                        <div class="export-progress">
+                            <div class="export-progress-bar" id="exportProgressBar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Vista previa del reporte -->
+                <div class="charts-section">
+                    <div class="section-title">
+                        <span>👁️</span> VISTA PREVIA DEL REPORTE
+                    </div>
+                    
+                    <!-- Pestañas de vista previa -->
+                    <div class="chart-tabs" id="previewTabs">
+                        <div class="chart-tab active" data-preview="summary">Resumen</div>
+                        <div class="chart-tab" data-preview="trades">Trades</div>
+                        <div class="chart-tab" data-preview="metrics">Métricas</div>
+                        <div class="chart-tab" data-preview="charts">Gráficas</div>
+                        <div class="chart-tab" data-preview="raw">Datos Crudos</div>
+                    </div>
+                    
+                    <!-- Contenedores de vista previa -->
+                    <div class="chart-container">
+                        <!-- Resumen -->
+                        <div class="chart-wrapper" id="summaryPreviewWrapper">
+                            <div class="chart-title">
+                                <span>📋</span> RESUMEN EJECUTIVO
+                            </div>
+                            <div class="chart-placeholder" id="summaryPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-cyan); opacity: 0.3;">📊</div>
+                                <div style="color: var(--muted); max-width: 300px;">
+                                    <strong>Importa datos para generar el resumen</strong><br>
+                                    <small>Se mostrará un resumen ejecutivo del análisis</small>
+                                </div>
+                            </div>
+                            <div class="report-summary" id="summaryContent" style="display: none;">
+                                <!-- Contenido del resumen se generará aquí -->
+                            </div>
+                        </div>
+                        
+                        <!-- Trades -->
+                        <div class="chart-wrapper" id="tradesPreviewWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>💹</span> TABLA DE TRADES
+                            </div>
+                            <div class="chart-placeholder" id="tradesPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-green); opacity: 0.3;">📊</div>
+                                <div>Tabla de trades se generará aquí</div>
+                            </div>
+                            <div class="table-preview" id="tradesContent" style="display: none; max-height: 350px;">
+                                <!-- Tabla de trades se generará aquí -->
+                            </div>
+                        </div>
+                        
+                        <!-- Métricas -->
+                        <div class="chart-wrapper" id="metricsPreviewWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>📈</span> MÉTRICAS DE PERFORMANCE
+                            </div>
+                            <div class="chart-placeholder" id="metricsPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-yellow); opacity: 0.3;">📊</div>
+                                <div>Métricas se generarán aquí</div>
+                            </div>
+                            <div id="metricsContent" style="display: none;">
+                                <!-- Métricas se generarán aquí -->
+                            </div>
+                        </div>
+
+                        <!-- Gráficas -->
+                        <div class="chart-wrapper" id="chartsPreviewWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>📊</span> GRÁFICAS PRINCIPALES
+                            </div>
+                            <div class="chart-placeholder" id="chartsPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-purple); opacity: 0.3;">📊</div>
+                                <div>Gráficas se generarán aquí</div>
+                            </div>
+                            <div class="charts-preview" id="chartsContent" style="display: none;">
+                                <!-- Gráficas se generarán aquí -->
+                            </div>
+                        </div>
+
+                        <!-- Datos Crudos -->
+                        <div class="chart-wrapper" id="rawPreviewWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>📄</span> DATOS CRUDOS
+                            </div>
+                            <div class="chart-placeholder" id="rawPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-blue); opacity: 0.3;">📊</div>
+                                <div>Datos crudos se mostrarán aquí</div>
+                            </div>
+                            <div class="table-preview" id="rawContent" style="display: none; max-height: 350px; font-family: monospace; font-size: 10px;">
+                                <!-- Datos crudos se mostrarán aquí -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exportación y Batch -->
+                <div class="export-panel">
+                    <div class="section-title">
+                        <span>🚀</span> EXPORTACIÓN AVANZADA
+                    </div>
+                    
+                    <!-- Botones de exportación -->
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-primary" id="exportReportBtn" disabled>
+                            <span>💾</span> Exportar Reporte
+                        </button>
+                        <button class="btn btn-success" id="exportAllBtn" disabled>
+                            <span>📦</span> Exportar Todo
+                        </button>
+                        <button class="btn btn-warning" id="batchExportBtn">
+                            <span>🔄</span> Exportación por Lotes
+                        </button>
+                    </div>
+
+                    <!-- Panel de exportación por lotes -->
+                    <div class="batch-export" id="batchExportPanel" style="display: none;">
+                        <div class="config-label">
+                            <span>📊</span> Exportación por Lotes
+                        </div>
+                        <div class="batch-options">
+                            <div class="batch-option" data-batch="daily">Diario</div>
+                            <div class="batch-option" data-batch="weekly">Semanal</div>
+                            <div class="batch-option selected" data-batch="monthly">Mensual</div>
+                            <div class="batch-option" data-batch="custom">Personalizado</div>
+                        </div>
+                        
+                        <div class="config-group" style="margin-top: 10px;">
+                            <div class="config-label">
+                                <span>📅</span> Rango de Fechas
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="date" id="batchStartDate" class="config-input">
+                                <input type="date" id="batchEndDate" class="config-input">
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-secondary" id="generateBatchBtn" style="margin-top: 10px;">
+                            <span>⚡</span> Generar Lote
+                        </button>
+                    </div>
+
+                    <!-- Estadísticas de exportación -->
+                    <div class="data-stats" style="margin-top: 15px;">
+                        <div class="stat-item">
+                            <span class="stat-label">Reporte generado:</span>
+                            <span class="stat-value" id="reportGenerated">No</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Tamaño estimado:</span>
+                            <span class="stat-value" id="reportSize">0 KB</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Trades incluidos:</span>
+                            <span class="stat-value" id="reportTrades">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Última exportación:</span>
+                            <span class="stat-value" id="lastExport">Nunca</span>
+                        </div>
+                    </div>
+
+                    <!-- Información de exportación -->
+                    <div class="recommendation-box" style="margin-top: 15px;">
+                        <div class="recommendation-title">
+                            <span>💡</span> INFORMACIÓN DE EXPORTACIÓN
+                        </div>
+                        <div class="recommendation-content" id="exportInfo">
+                            <strong>Este es el último programa de la serie</strong><br>
+                            • Exporta reportes completos en múltiples formatos<br>
+                            • Incluye todos los análisis de programas anteriores<br>
+                            • Genera archivos listos para presentación o análisis externo<br>
+                            <small>Los reportes incluyen datos consolidados de toda la serie de análisis.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONFIGURACIÓN =====
+        const STORAGE_KEY = 'report_exporter_v1';
+        const { jsPDF } = window.jspdf;
+        
+        // ===== VARIABLES GLOBALES =====
+        let importedData = null;
+        let reportData = null;
+        let currentReportType = 'csv';
+        let selectedContent = {
+            trades: true,
+            basic: true,
+            advanced: true,
+            charts: true
+        };
+        let isGenerating = false;
+        let currentPreview = 'summary';
+        let exportHistory = [];
+
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('EXPORTADOR DE REPORTES - Sistema iniciado');
+            
+            // Cargar datos guardados
+            loadSavedData();
+            
+            // Configurar event listeners
+            setupEventListeners();
+            
+            // Configurar UI inicial
+            setupInitialUI();
+        });
+
+        // ===== CONFIGURACIÓN DE UI =====
+        function setupInitialUI() {
+            // Configurar file type buttons
+            document.querySelectorAll('.file-type-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'INPUT') return;
+                    
+                    document.querySelectorAll('.file-type-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById(`${this.dataset.type}Input`).click();
+                });
+            });
+            
+            // Configurar report type buttons
+            document.querySelectorAll('.report-type-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    currentReportType = this.dataset.type;
+                    
+                    // Manejar PDF (futuro)
+                    if (currentReportType === 'pdf') {
+                        showNotification('Exportación PDF disponible en próxima versión', 'warning');
+                        return;
+                    }
+                    
+                    document.querySelectorAll('.report-type-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Mostrar opciones específicas
+                    document.getElementById('csvOptions').style.display = 'none';
+                    document.getElementById('jsonOptions').style.display = 'none';
+                    document.getElementById('pdfOptions').style.display = 'none';
+                    
+                    if (currentReportType === 'csv') {
+                        document.getElementById('csvOptions').style.display = 'block';
+                    } else if (currentReportType === 'json') {
+                        document.getElementById('jsonOptions').style.display = 'block';
+                    }
+                });
+            });
+            
+            // Configurar content options
+            document.querySelectorAll('.content-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    const contentType = this.dataset.content;
+                    const checkbox = this.querySelector('.content-checkbox');
+                    
+                    selectedContent[contentType] = !selectedContent[contentType];
+                    
+                    if (selectedContent[contentType]) {
+                        checkbox.classList.add('checked');
+                        this.classList.add('selected');
+                    } else {
+                        checkbox.classList.remove('checked');
+                        this.classList.remove('selected');
+                    }
+                });
+            });
+            
+            // Configurar preview tabs
+            document.querySelectorAll('.chart-tab[data-preview]').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    currentPreview = this.dataset.preview;
+                    showPreview(currentPreview);
+                    
+                    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Configurar batch options
+            document.querySelectorAll('.batch-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.batch-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+            
+            // Configurar fecha actual por defecto
+            const today = new Date().toISOString().split('T')[0];
+            const lastMonth = new Date();
+            lastMonth.setMonth(lastMonth.getMonth() - 1);
+            const lastMonthStr = lastMonth.toISOString().split('T')[0];
+            
+            document.getElementById('batchStartDate').value = lastMonthStr;
+            document.getElementById('batchEndDate').value = today;
+        }
+
+        function setupEventListeners() {
+            // Input files
+            document.getElementById('riskInput').addEventListener('change', (e) => handleFileImport(e, 'risk'));
+            document.getElementById('managementInput').addEventListener('change', (e) => handleFileImport(e, 'management'));
+            document.getElementById('simulationInput').addEventListener('change', (e) => handleFileImport(e, 'simulation'));
+            document.getElementById('tradesInput').addEventListener('change', (e) => handleFileImport(e, 'trades'));
+            
+            // Botones
+            document.getElementById('generateReportBtn').addEventListener('click', generateReport);
+            document.getElementById('previewReportBtn').addEventListener('click', previewReport);
+            document.getElementById('exportReportBtn').addEventListener('click', exportReport);
+            document.getElementById('exportAllBtn').addEventListener('click', exportAllFormats);
+            document.getElementById('batchExportBtn').addEventListener('click', toggleBatchExport);
+            document.getElementById('generateBatchBtn').addEventListener('click', generateBatchExport);
+            
+            // Cambios en opciones
+            document.getElementById('reportFilename').addEventListener('input', updateReportInfo);
+            document.getElementById('csvSeparator').addEventListener('change', updateReportInfo);
+            document.getElementById('jsonFormat').addEventListener('change', updateReportInfo);
+            
+            // Configurar fecha por defecto
+            setupDefaultDates();
+        }
+
+        function setupDefaultDates() {
+            const today = new Date();
+            const lastMonth = new Date(today);
+            lastMonth.setMonth(lastMonth.getMonth() - 1);
+            
+            document.getElementById('batchStartDate').value = lastMonth.toISOString().split('T')[0];
+            document.getElementById('batchEndDate').value = today.toISOString().split('T')[0];
+        }
+
+        // ===== FUNCIONES DE IMPORTACIÓN =====
+        function handleFileImport(event, fileType) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            console.log(`📥 Importando archivo ${fileType}:`, file.name);
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    const data = JSON.parse(content);
+                    
+                    processImportedData(data, fileType, file.name);
+                    updateImportStats(file, fileType);
+                    enableReportButtons();
+                    showNotification(`Archivo ${file.name} importado exitosamente`, 'success');
+                    
+                } catch (error) {
+                    console.error('Error importando archivo:', error);
+                    showNotification('Error importando archivo: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function processImportedData(data, fileType, filename) {
+            console.log(`Procesando datos ${fileType}:`, data);
+            
+            importedData = {
+                source: fileType,
+                filename: filename,
+                timestamp: new Date().toISOString(),
+                data: data
+            };
+            
+            // Procesar según tipo de archivo
+            switch(fileType) {
+                case 'risk':
+                    processRiskData(data);
+                    break;
+                case 'management':
+                    processManagementData(data);
+                    break;
+                case 'simulation':
+                    processSimulationData(data);
+                    break;
+                case 'trades':
+                    processTradesData(data);
+                    break;
+            }
+            
+            // Mostrar preview de datos
+            showDataPreview(data);
+        }
+
+        function processRiskData(data) {
+            // Procesar datos de Calculadora de Riesgo
+            if (data.calculations) {
+                reportData = {
+                    type: 'risk',
+                    parameters: data.parameters || {},
+                    calculations: data.calculations || {},
+                    recommendations: data.recommendations || {},
+                    timestamp: data.timestamp || new Date().toISOString()
+                };
+                
+                // Generar trades de ejemplo basados en cálculos
+                generateSampleTradesFromRisk(data);
+            }
+        }
+
+        function processManagementData(data) {
+            // Procesar datos de Gestión de Cuenta
+            if (data.calculations) {
+                reportData = {
+                    type: 'management',
+                    accountData: data.accountData || {},
+                    calculations: data.calculations || {},
+                    recommendations: data.recommendations || {},
+                    timestamp: data.timestamp || new Date().toISOString()
+                };
+                
+                generateSampleTradesFromManagement(data);
+            }
+        }
+
+        function processSimulationData(data) {
+            // Procesar datos de Simulación
+            if (data.simulationResults) {
+                reportData = {
+                    type: 'simulation',
+                    parameters: data.parameters || {},
+                    results: data.simulationResults || {},
+                    statistics: data.statistics || {},
+                    timestamp: data.timestamp || new Date().toISOString()
+                };
+                
+                // Usar trades de simulación si existen
+                if (data.simulationResults.trades) {
+                    reportData.trades = data.simulationResults.trades;
+                } else {
+                    generateSampleTradesFromSimulation(data);
+                }
+            }
+        }
+
+        function processTradesData(data) {
+            // Procesar datos de Trades Históricos
+            if (Array.isArray(data.trades) || Array.isArray(data)) {
+                reportData = {
+                    type: 'trades',
+                    trades: Array.isArray(data.trades) ? data.trades : data,
+                    metadata: data.metadata || {},
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Calcular métricas basadas en trades
+                calculateMetricsFromTrades();
+            }
+        }
+
+        function generateSampleTradesFromRisk(riskData) {
+            // Generar trades de ejemplo basados en datos de riesgo
+            const trades = [];
+            const numTrades = 50;
+            const winRate = 0.55;
+            const riskReward = riskData.parameters?.riskReward || 2;
+            const riskAmount = riskData.calculations?.monetaryRisk || 100;
+            
+            let equity = riskData.parameters?.capital || 10000;
+            let peakEquity = equity;
+            let maxDrawdown = 0;
+            
+            for (let i = 0; i < numTrades; i++) {
+                const isWin = Math.random() < winRate;
+                const profitLoss = isWin ? riskAmount * riskReward : -riskAmount;
+                equity += profitLoss;
+                peakEquity = Math.max(peakEquity, equity);
+                const drawdown = ((peakEquity - equity) / peakEquity) * 100;
+                maxDrawdown = Math.max(maxDrawdown, drawdown);
+                
+                trades.push({
+                    id: i + 1,
+                    date: new Date(Date.now() - (numTrades - i) * 86400000).toISOString().split('T')[0],
+                    instrument: 'EUR/USD',
+                    type: Math.random() > 0.5 ? 'BUY' : 'SELL',
+                    entry: 1.0800 + (Math.random() - 0.5) * 0.01,
+                    exit: 1.0800 + (Math.random() - 0.5) * 0.01,
+                    size: riskData.calculations?.positionSize || 0.1,
+                    pnl: profitLoss,
+                    pnlPercent: (profitLoss / (riskData.parameters?.capital || 10000)) * 100,
+                    win: isWin,
+                    risk: riskAmount,
+                    reward: isWin ? riskAmount * riskReward : 0,
+                    duration: Math.floor(Math.random() * 240) + 60, // 1-5 horas en minutos
+                    notes: isWin ? 'Target alcanzado' : 'Stop loss activado'
+                });
+            }
+            
+            reportData.trades = trades;
+            calculateMetricsFromTrades();
+        }
+
+        function generateSampleTradesFromManagement(managementData) {
+            const trades = [];
+            const numTrades = 100;
+            const winRate = managementData.calculations?.winRate || 0.55;
+            const riskReward = 2;
+            const riskPercent = managementData.calculations?.riskPercent || 2;
+            const capital = managementData.accountData?.capital || 10000;
+            const riskAmount = capital * (riskPercent / 100);
+            
+            let equity = capital;
+            let peakEquity = capital;
+            let maxDrawdown = 0;
+            
+            for (let i = 0; i < numTrades; i++) {
+                const isWin = Math.random() < winRate;
+                const profitLoss = isWin ? riskAmount * riskReward : -riskAmount;
+                equity += profitLoss;
+                peakEquity = Math.max(peakEquity, equity);
+                const drawdown = ((peakEquity - equity) / peakEquity) * 100;
+                maxDrawdown = Math.max(maxDrawdown, drawdown);
+                
+                trades.push({
+                    id: i + 1,
+                    date: new Date(Date.now() - (numTrades - i) * 86400000).toISOString().split('T')[0],
+                    instrument: ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD'][Math.floor(Math.random() * 4)],
+                    type: Math.random() > 0.5 ? 'BUY' : 'SELL',
+                    entry: 1.0800 + (Math.random() - 0.5) * 0.02,
+                    exit: 1.0800 + (Math.random() - 0.5) * 0.02,
+                    size: 0.1 + Math.random() * 0.9,
+                    pnl: profitLoss,
+                    pnlPercent: (profitLoss / capital) * 100,
+                    win: isWin,
+                    risk: riskAmount,
+                    reward: isWin ? riskAmount * riskReward : 0,
+                    duration: Math.floor(Math.random() * 480) + 30,
+                    notes: isWin ? 'Take profit' : 'Stop loss'
+                });
+            }
+            
+            reportData.trades = trades;
+            calculateMetricsFromTrades();
+        }
+
+        function generateSampleTradesFromSimulation(simData) {
+            const trades = [];
+            const numTrades = simData.parameters?.numTrades || 200;
+            const winRate = simData.statistics?.winRate || 0.48;
+            const avgWin = simData.statistics?.avgWin || 150;
+            const avgLoss = simData.statistics?.avgLoss || -100;
+            
+            let totalProfit = 0;
+            let wins = 0;
+            let losses = 0;
+            let maxProfit = 0;
+            let maxLoss = 0;
+            let equity = simData.parameters?.initialCapital || 10000;
+            let peakEquity = equity;
+            let maxDrawdown = 0;
+            
+            const instruments = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'XAU/USD', 'BTC/USD'];
+            
+            for (let i = 0; i < numTrades; i++) {
+                const isWin = Math.random() < winRate;
+                const profitLoss = isWin ? 
+                    avgWin * (0.8 + Math.random() * 0.4) : 
+                    avgLoss * (0.8 + Math.random() * 0.4);
+                
+                equity += profitLoss;
+                peakEquity = Math.max(peakEquity, equity);
+                const drawdown = ((peakEquity - equity) / peakEquity) * 100;
+                maxDrawdown = Math.max(maxDrawdown, drawdown);
+                totalProfit += profitLoss;
+                
+                if (profitLoss > 0) {
+                    wins++;
+                    maxProfit = Math.max(maxProfit, profitLoss);
+                } else {
+                    losses++;
+                    maxLoss = Math.min(maxLoss, profitLoss);
+                }
+                
+                trades.push({
+                    id: i + 1,
+                    date: new Date(Date.now() - (numTrades - i) * 43200000).toISOString(), // Cada 12 horas
+                    instrument: instruments[Math.floor(Math.random() * instruments.length)],
+                    type: Math.random() > 0.5 ? 'BUY' : 'SELL',
+                    entry: 1.0800 + (Math.random() - 0.5) * 0.05,
+                    exit: 1.0800 + (Math.random() - 0.5) * 0.05,
+                    size: 0.01 + Math.random() * 1.99,
+                    pnl: profitLoss,
+                    pnlPercent: (profitLoss / equity) * 100,
+                    win: isWin,
+                    risk: Math.abs(avgLoss),
+                    reward: isWin ? Math.abs(avgWin) : 0,
+                    duration: Math.floor(Math.random() * 1440) + 5, // 5min - 24h
+                    notes: isWin ? 'Target' : 'Stop',
+                    strategy: ['Scalping', 'Day Trading', 'Swing', 'Position'][Math.floor(Math.random() * 4)]
+                });
+            }
+            
+            reportData.trades = trades;
+            reportData.metrics = {
+                totalTrades: numTrades,
+                winningTrades: wins,
+                losingTrades: losses,
+                winRate: (wins / numTrades) * 100,
+                totalProfit: totalProfit,
+                avgWin: avgWin,
+                avgLoss: avgLoss,
+                largestWin: maxProfit,
+                largestLoss: maxLoss,
+                profitFactor: Math.abs((wins * avgWin) / (losses * Math.abs(avgLoss))) || 0,
+                maxDrawdown: maxDrawdown,
+                expectancy: ((winRate * avgWin) + ((1 - winRate) * avgLoss)),
+                sharpeRatio: (totalProfit / numTrades) / (Math.abs(avgLoss) * 0.8) || 0
+            };
+        }
+
+        function calculateMetricsFromTrades() {
+            if (!reportData.trades || reportData.trades.length === 0) return;
+            
+            const trades = reportData.trades;
+            const numTrades = trades.length;
+            
+            let totalProfit = 0;
+            let wins = 0;
+            let losses = 0;
+            let totalWinAmount = 0;
+            let totalLossAmount = 0;
+            let maxProfit = 0;
+            let maxLoss = 0;
+            let equity = 10000; // Capital inicial asumido
+            let peakEquity = equity;
+            let maxDrawdown = 0;
+            let equityCurve = [equity];
+            
+            // Calcular equity curve y drawdown
+            trades.forEach(trade => {
+                const pnl = trade.pnl || 0;
+                totalProfit += pnl;
+                equity += pnl;
+                equityCurve.push(equity);
+                peakEquity = Math.max(peakEquity, equity);
+                const drawdown = ((peakEquity - equity) / peakEquity) * 100;
+                maxDrawdown = Math.max(maxDrawdown, drawdown);
+                
+                if (pnl > 0) {
+                    wins++;
+                    totalWinAmount += pnl;
+                    maxProfit = Math.max(maxProfit, pnl);
+                } else if (pnl < 0) {
+                    losses++;
+                    totalLossAmount += Math.abs(pnl);
+                    maxLoss = Math.min(maxLoss, pnl);
+                }
+            });
+            
+            const winRate = (wins / numTrades) * 100;
+            const avgWin = wins > 0 ? totalWinAmount / wins : 0;
+            const avgLoss = losses > 0 ? totalLossAmount / losses : 0;
+            const profitFactor = totalLossAmount > 0 ? totalWinAmount / totalLossAmount : totalWinAmount > 0 ? Infinity : 0;
+            const expectancy = (winRate/100 * avgWin) - ((1 - winRate/100) * avgLoss);
+            
+            // Calcular ratio de Sharpe (simplificado)
+            const returns = [];
+            for (let i = 1; i < equityCurve.length; i++) {
+                returns.push((equityCurve[i] - equityCurve[i-1]) / equityCurve[i-1]);
+            }
+            const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
+            const stdDev = returns.length > 1 ? 
+                Math.sqrt(returns.map(x => Math.pow(x - avgReturn, 2)).reduce((a, b) => a + b, 0) / (returns.length - 1)) : 0;
+            const sharpeRatio = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0;
+            
+            // Calcular ratio de Sortino (solo desviación negativa)
+            const negativeReturns = returns.filter(r => r < 0);
+            const downsideDev = negativeReturns.length > 1 ?
+                Math.sqrt(negativeReturns.map(x => Math.pow(x - avgReturn, 2)).reduce((a, b) => a + b, 0) / negativeReturns.length) : 0;
+            const sortinoRatio = downsideDev > 0 ? (avgReturn / downsideDev) * Math.sqrt(252) : 0;
+            
+            // Calcular fracción de Kelly
+            const winProbability = winRate / 100;
+            const lossProbability = 1 - winProbability;
+            const avgWinLossRatio = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0;
+            const kellyFraction = avgWinLossRatio > 0 ? 
+                Math.max(0, (winProbability * avgWinLossRatio - lossProbability) / avgWinLossRatio) : 0;
+            
+            reportData.metrics = {
+                totalTrades: numTrades,
+                winningTrades: wins,
+                losingTrades: losses,
+                breakevenTrades: numTrades - wins - losses,
+                winRate: winRate,
+                totalProfit: totalProfit,
+                totalWinAmount: totalWinAmount,
+                totalLossAmount: totalLossAmount,
+                avgWin: avgWin,
+                avgLoss: avgLoss,
+                largestWin: maxProfit,
+                largestLoss: maxLoss,
+                profitFactor: profitFactor,
+                maxDrawdown: maxDrawdown,
+                expectancy: expectancy,
+                sharpeRatio: sharpeRatio,
+                sortinoRatio: sortinoRatio,
+                kellyFraction: kellyFraction * 100, // En porcentaje
+                recoveryFactor: maxDrawdown > 0 ? totalProfit / maxDrawdown : totalProfit > 0 ? Infinity : 0,
+                avgTrade: totalProfit / numTrades,
+                stdDevReturns: stdDev,
+                finalEquity: equity,
+                totalReturn: ((equity - 10000) / 10000) * 100
+            };
+            
+            reportData.equityCurve = equityCurve;
+            reportData.returns = returns;
+        }
+
+        function showDataPreview(data) {
+            const previewBody = document.getElementById('previewTableBody');
+            previewBody.innerHTML = '';
+            
+            // Mostrar primeros 10 campos del objeto
+            const fields = Object.entries(data).slice(0, 10);
+            
+            fields.forEach(([key, value]) => {
+                const row = document.createElement('tr');
+                
+                const keyCell = document.createElement('td');
+                keyCell.textContent = key;
+                keyCell.style.fontWeight = '600';
+                keyCell.style.color = 'var(--neon-cyan)';
+                
+                const valueCell = document.createElement('td');
+                if (typeof value === 'object') {
+                    valueCell.textContent = Array.isArray(value) ? 
+                        `Array[${value.length}]` : 
+                        'Object';
+                    valueCell.style.color = 'var(--neon-purple)';
+                } else {
+                    valueCell.textContent = String(value).substring(0, 50);
+                }
+                
+                row.appendChild(keyCell);
+                row.appendChild(valueCell);
+                previewBody.appendChild(row);
+            });
+            
+            document.getElementById('dataPreview').style.display = 'block';
+        }
+
+        function updateImportStats(file, fileType) {
+            const typeNames = {
+                'risk': 'Calculadora Riesgo',
+                'management': 'Gestión Cuenta',
+                'simulation': 'Simulación',
+                'trades': 'Trades Históricos'
+            };
+            
+            document.getElementById('dataSource').textContent = file.name;
+            document.getElementById('dataType').textContent = typeNames[fileType] || fileType;
+            document.getElementById('dataRecords').textContent = reportData?.trades?.length || 'N/A';
+            document.getElementById('importStatus').textContent = 'Cargado ✓';
+            document.getElementById('importStatus').style.color = 'var(--neon-green)';
+            
+            document.getElementById('systemStatus').textContent = 'Datos listos';
+            document.getElementById('systemStatus').style.color = 'var(--neon-green)';
+            document.getElementById('connectionStatus').textContent = 'Conectado';
+        }
+
+        // ===== GENERACIÓN DE REPORTES =====
+        function generateReport() {
+            if (isGenerating || !reportData) return;
+            
+            try {
+                isGenerating = true;
+                const startTime = performance.now();
+                
+                document.getElementById('generateReportBtn').disabled = true;
+                document.getElementById('generateReportBtn').innerHTML = '<span class="pulse">⚡</span> Generando...';
+                
+                showNotification('Generando reporte...', 'info');
+                
+                // Mostrar barra de progreso
+                document.getElementById('exportProgress').style.display = 'block';
+                updateProgress(0, 'Preparando datos...');
+                
+                setTimeout(() => {
+                    try {
+                        updateProgress(25, 'Procesando trades...');
+                        
+                        // Generar datos del reporte
+                        const report = {
+                            metadata: {
+                                generatedAt: new Date().toISOString(),
+                                program: 'Trading Analytics v1.0',
+                                reportType: currentReportType,
+                                source: importedData?.source || 'unknown',
+                                version: '1.0'
+                            },
+                            summary: generateExecutiveSummary(),
+                            trades: selectedContent.trades ? reportData.trades || [] : [],
+                            metrics: generateMetrics(),
+                            charts: selectedContent.charts ? generateChartsData() : {},
+                            recommendations: document.getElementById('includeRecommendations').checked ? 
+                                generateRecommendations() : [],
+                            rawData: importedData?.data || {}
+                        };
+                        
+                        updateProgress(75, 'Formateando datos...');
+                        
+                        reportData.report = report;
+                        
+                        // Actualizar información del reporte
+                        updateReportInfo();
+                        
+                        // Generar vista previa
+                        generatePreview();
+                        
+                        // Habilitar botones de exportación
+                        document.getElementById('exportReportBtn').disabled = false;
+                        document.getElementById('exportAllBtn').disabled = false;
+                        document.getElementById('previewReportBtn').disabled = false;
+                        
+                        updateProgress(100, 'Reporte listo!');
+                        
+                        const endTime = performance.now();
+                        reportData.generationTime = endTime - startTime;
+                        
+                        showNotification(`Reporte generado en ${reportData.generationTime.toFixed(0)}ms`, 'success');
+                        
+                        // Ocultar barra de progreso después de 2 segundos
+                        setTimeout(() => {
+                            document.getElementById('exportProgress').style.display = 'none';
+                        }, 2000);
+                        
+                    } catch (error) {
+                        console.error('Error generando reporte:', error);
+                        showNotification('Error generando reporte: ' + error.message, 'error');
+                    } finally {
+                        isGenerating = false;
+                        document.getElementById('generateReportBtn').disabled = false;
+                        document.getElementById('generateReportBtn').innerHTML = '<span>⚡</span> Generar Reporte';
+                    }
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error iniciando generación:', error);
+                showNotification('Error: ' + error.message, 'error');
+                isGenerating = false;
+            }
+        }
+
+        function generateExecutiveSummary() {
+            if (!reportData.metrics) return {};
+            
+            const metrics = reportData.metrics;
+            const totalReturn = metrics.totalReturn || ((metrics.finalEquity - 10000) / 10000) * 100;
+            const isProfitable = totalReturn > 0;
+            const riskLevel = metrics.maxDrawdown > 20 ? 'Alto' : 
+                             metrics.maxDrawdown > 10 ? 'Moderado' : 'Bajo';
+            
+            return {
+                overallPerformance: isProfitable ? 'Positivo' : 'Negativo',
+                totalReturn: totalReturn.toFixed(2) + '%',
+                totalTrades: metrics.totalTrades,
+                winRate: metrics.winRate.toFixed(1) + '%',
+                profitFactor: metrics.profitFactor.toFixed(2),
+                maxDrawdown: metrics.maxDrawdown.toFixed(2) + '%',
+                riskLevel: riskLevel,
+                expectancy: '$' + metrics.expectancy?.toFixed(2) || 'N/A',
+                sharpeRatio: metrics.sharpeRatio?.toFixed(2) || 'N/A',
+                startDate: reportData.trades?.[0]?.date || 'N/A',
+                endDate: reportData.trades?.[reportData.trades?.length - 1]?.date || 'N/A',
+                conclusion: generateConclusion(metrics, isProfitable)
+            };
+        }
+
+        function generateConclusion(metrics, isProfitable) {
+            let conclusion = '';
+            
+            if (isProfitable) {
+                conclusion += '✅ Estrategia rentable. ';
+                if (metrics.winRate > 60) {
+                    conclusion += 'Alta tasa de aciertos sugiere consistencia. ';
+                } else if (metrics.profitFactor > 2) {
+                    conclusion += 'Excelente ratio ganancia/pérdida. ';
+                }
+                
+                if (metrics.maxDrawdown < 10) {
+                    conclusion += 'Drawdown controlado. ';
+                } else if (metrics.maxDrawdown > 20) {
+                    conclusion += '⚠️ Drawdown elevado requiere atención. ';
+                }
+                
+                if (metrics.sharpeRatio > 1.5) {
+                    conclusion += 'Buen retorno ajustado al riesgo. ';
+                }
+            } else {
+                conclusion += '❌ Estrategia no rentable. ';
+                if (metrics.winRate < 40) {
+                    conclusion += 'Baja tasa de aciertos. ';
+                }
+                if (metrics.profitFactor < 1) {
+                    conclusion += 'Pérdidas mayores que ganancias. ';
+                }
+                conclusion += 'Revisar criterios de entrada/salida.';
+            }
+            
+            if (metrics.totalTrades < 30) {
+                conclusion += ' ⚠️ Muestra estadística pequeña.';
+            }
+            
+            return conclusion;
+        }
+
+        function generateMetrics() {
+            if (!reportData.metrics) return {};
+            
+            const metrics = reportData.metrics;
+            const allMetrics = {};
+            
+            // Métricas básicas (9.2.2)
+            if (selectedContent.basic) {
+                allMetrics.basic = {
+                    totalTrades: metrics.totalTrades,
+                    winningTrades: metrics.winningTrades,
+                    losingTrades: metrics.losingTrades,
+                    winRate: metrics.winRate,
+                    totalProfit: metrics.totalProfit,
+                    profitFactor: metrics.profitFactor,
+                    maxDrawdown: metrics.maxDrawdown,
+                    largestWin: metrics.largestWin,
+                    largestLoss: metrics.largestLoss,
+                    avgWin: metrics.avgWin,
+                    avgLoss: metrics.avgLoss,
+                    avgTrade: metrics.avgTrade
+                };
+            }
+            
+            // Métricas avanzadas (9.2.3)
+            if (selectedContent.advanced) {
+                allMetrics.advanced = {
+                    expectancy: metrics.expectancy,
+                    sharpeRatio: metrics.sharpeRatio,
+                    sortinoRatio: metrics.sortinoRatio,
+                    kellyFraction: metrics.kellyFraction,
+                    recoveryFactor: metrics.recoveryFactor,
+                    stdDevReturns: metrics.stdDevReturns,
+                    totalReturn: metrics.totalReturn,
+                    finalEquity: metrics.finalEquity,
+                    riskRewardRatio: metrics.avgLoss !== 0 ? Math.abs(metrics.avgWin / metrics.avgLoss) : 0,
+                    consecutiveWins: calculateConsecutiveWins(),
+                    consecutiveLosses: calculateConsecutiveLosses()
+                };
+            }
+            
+            return allMetrics;
+        }
+
+        function calculateConsecutiveWins() {
+            if (!reportData.trades) return 0;
+            
+            let maxConsecutive = 0;
+            let current = 0;
+            
+            reportData.trades.forEach(trade => {
+                if (trade.win) {
+                    current++;
+                    maxConsecutive = Math.max(maxConsecutive, current);
+                } else {
+                    current = 0;
+                }
+            });
+            
+            return maxConsecutive;
+        }
+
+        function calculateConsecutiveLosses() {
+            if (!reportData.trades) return 0;
+            
+            let maxConsecutive = 0;
+            let current = 0;
+            
+            reportData.trades.forEach(trade => {
+                if (!trade.win && trade.pnl < 0) {
+                    current++;
+                    maxConsecutive = Math.max(maxConsecutive, current);
+                } else {
+                    current = 0;
+                }
+            });
+            
+            return maxConsecutive;
+        }
+
+        function generateChartsData() {
+            if (!reportData.equityCurve || !reportData.trades) return {};
+            
+            return {
+                equityCurve: reportData.equityCurve,
+                drawdownCurve: calculateDrawdownCurve(),
+                monthlyReturns: calculateMonthlyReturns(),
+                tradeDistribution: distributeTradesByResult(),
+                winLossByInstrument: groupTradesByInstrument(),
+                timeAnalysis: analyzeTradeTimes()
+            };
+        }
+
+        function calculateDrawdownCurve() {
+            if (!reportData.equityCurve) return [];
+            
+            const drawdowns = [];
+            let peak = reportData.equityCurve[0];
+            
+            reportData.equityCurve.forEach(equity => {
+                peak = Math.max(peak, equity);
+                const drawdown = ((peak - equity) / peak) * 100;
+                drawdowns.push(drawdown);
+            });
+            
+            return drawdowns;
+        }
+
+        function calculateMonthlyReturns() {
+            if (!reportData.trades) return {};
+            
+            const monthlyReturns = {};
+            
+            reportData.trades.forEach(trade => {
+                const date = new Date(trade.date);
+                const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                
+                if (!monthlyReturns[monthKey]) {
+                    monthlyReturns[monthKey] = 0;
+                }
+                
+                monthlyReturns[monthKey] += trade.pnl || 0;
+            });
+            
+            return monthlyReturns;
+        }
+
+        function distributeTradesByResult() {
+            if (!reportData.trades) return {};
+            
+            const distribution = {
+                bigWins: 0,    // > 2R
+                smallWins: 0,  // 0-2R
+                smallLosses: 0, // 0-1R
+                bigLosses: 0    // > 1R
+            };
+            
+            reportData.trades.forEach(trade => {
+                const risk = trade.risk || 100;
+                const pnl = trade.pnl || 0;
+                const rMultiple = pnl / risk;
+                
+                if (pnl > 0) {
+                    if (rMultiple > 2) {
+                        distribution.bigWins++;
+                    } else {
+                        distribution.smallWins++;
+                    }
+                } else {
+                    if (Math.abs(rMultiple) > 1) {
+                        distribution.bigLosses++;
+                    } else {
+                        distribution.smallLosses++;
+                    }
+                }
+            });
+            
+            return distribution;
+        }
+
+        function groupTradesByInstrument() {
+            if (!reportData.trades) return {};
+            
+            const byInstrument = {};
+            
+            reportData.trades.forEach(trade => {
+                const instrument = trade.instrument || 'Unknown';
+                
+                if (!byInstrument[instrument]) {
+                    byInstrument[instrument] = {
+                        wins: 0,
+                        losses: 0,
+                        total: 0,
+                        pnl: 0
+                    };
+                }
+                
+                byInstrument[instrument].total++;
+                byInstrument[instrument].pnl += trade.pnl || 0;
+                
+                if (trade.win) {
+                    byInstrument[instrument].wins++;
+                } else {
+                    byInstrument[instrument].losses++;
+                }
+            });
+            
+            return byInstrument;
+        }
+
+        function analyzeTradeTimes() {
+            if (!reportData.trades) return {};
+            
+            const timeAnalysis = {
+                morning: { wins: 0, losses: 0, pnl: 0 }, // 6-12
+                afternoon: { wins: 0, losses: 0, pnl: 0 }, // 12-18
+                evening: { wins: 0, losses: 0, pnl: 0 }, // 18-24
+                night: { wins: 0, losses: 0, pnl: 0 } // 0-6
+            };
+            
+            reportData.trades.forEach(trade => {
+                // Simular hora del trade
+                const hour = Math.floor(Math.random() * 24);
+                let period;
+                
+                if (hour >= 6 && hour < 12) period = 'morning';
+                else if (hour >= 12 && hour < 18) period = 'afternoon';
+                else if (hour >= 18 && hour < 24) period = 'evening';
+                else period = 'night';
+                
+                timeAnalysis[period].pnl += trade.pnl || 0;
+                if (trade.win) {
+                    timeAnalysis[period].wins++;
+                } else {
+                    timeAnalysis[period].losses++;
+                }
+            });
+            
+            return timeAnalysis;
+        }
+
+        function generateRecommendations() {
+            if (!reportData.metrics) return [];
+            
+            const metrics = reportData.metrics;
+            const recommendations = [];
+            
+            // Recomendaciones basadas en métricas
+            if (metrics.winRate < 40) {
+                recommendations.push({
+                    type: 'warning',
+                    title: 'Baja tasa de aciertos',
+                    description: 'Considerar mejorar criterios de entrada o reducir ruido del mercado',
+                    action: 'Revisar estrategia de entrada'
+                });
+            }
+            
+            if (metrics.profitFactor < 1.2) {
+                recommendations.push({
+                    type: 'warning',
+                    title: 'Ratio ganancia/pérdida bajo',
+                    description: 'Las ganancias no compensan suficientemente las pérdidas',
+                    action: 'Mejorar gestión de riesgo o aumentar take profit'
+                });
+            }
+            
+            if (metrics.maxDrawdown > 20) {
+                recommendations.push({
+                    type: 'danger',
+                    title: 'Drawdown excesivo',
+                    description: `Drawdown máximo de ${metrics.maxDrawdown.toFixed(1)}% supera límites recomendados`,
+                    action: 'Reducir tamaño de posición o mejorar stop loss'
+                });
+            }
+            
+            if (metrics.sharpeRatio > 1.5) {
+                recommendations.push({
+                    type: 'success',
+                    title: 'Excelente ratio de Sharpe',
+                    description: 'Buena relación retorno/riesgo, estrategia consistente',
+                    action: 'Considerar aumentar exposición gradualmente'
+                });
+            }
+            
+            if (metrics.totalTrades < 30) {
+                recommendations.push({
+                    type: 'info',
+                    title: 'Muestra estadística pequeña',
+                    description: 'Se necesitan más trades para conclusiones estadísticamente significativas',
+                    action: 'Continuar trading y reevaluar con más datos'
+                });
+            }
+            
+            // Recomendación general
+            if (metrics.totalReturn > 0) {
+                recommendations.push({
+                    type: 'success',
+                    title: 'Estrategia rentable',
+                    description: `Retorno total de ${metrics.totalReturn.toFixed(1)}%`,
+                    action: 'Continuar con gestión de riesgo actual'
+                });
+            }
+            
+            return recommendations;
+        }
+
+        // ===== VISTA PREVIA =====
+        function previewReport() {
+            if (!reportData.report) {
+                showNotification('Primero genera el reporte', 'warning');
+                return;
+            }
+            
+            generatePreview();
+            showPreview('summary');
+        }
+
+        function generatePreview() {
+            if (!reportData.report) return;
+            
+            generateSummaryPreview();
+            generateTradesPreview();
+            generateMetricsPreview();
+            generateChartsPreview();
+            generateRawPreview();
+        }
+
+        function showPreview(previewType) {
+            // Ocultar todas las vistas previas
+            document.querySelectorAll('.chart-wrapper').forEach(wrapper => {
+                wrapper.style.display = 'none';
+            });
+            
+            // Mostrar placeholder correspondiente
+            document.querySelectorAll('.chart-placeholder').forEach(placeholder => {
+                placeholder.style.display = 'flex';
+            });
+            
+            // Ocultar contenido generado
+            document.getElementById('summaryContent').style.display = 'none';
+            document.getElementById('tradesContent').style.display = 'none';
+            document.getElementById('metricsContent').style.display = 'none';
+            document.getElementById('chartsContent').style.display = 'none';
+            document.getElementById('rawContent').style.display = 'none';
+            
+            // Mostrar la vista previa seleccionada
+            const wrapper = document.getElementById(previewType + 'PreviewWrapper');
+            if (wrapper) {
+                wrapper.style.display = 'block';
+                
+                // Mostrar contenido si está generado
+                const content = document.getElementById(previewType + 'Content');
+                if (content && content.innerHTML.trim() !== '') {
+                    content.style.display = 'block';
+                    const placeholder = document.getElementById(previewType + 'Placeholder');
+                    if (placeholder) placeholder.style.display = 'none';
+                }
+            }
+        }
+
+        function generateSummaryPreview() {
+            if (!reportData.report?.summary) return;
+            
+            const summary = reportData.report.summary;
+            const summaryContent = document.getElementById('summaryContent');
+            
+            let html = `
+                <div class="summary-section">
+                    <div class="summary-title">
+                        <span>📊</span> PERFORMANCE GENERAL
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-label">Retorno Total</div>
+                            <div class="metric-value ${summary.totalReturn.includes('-') ? 'negative' : ''}">
+                                ${summary.totalReturn}
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Win Rate</div>
+                            <div class="metric-value">${summary.winRate}</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Profit Factor</div>
+                            <div class="metric-value">${summary.profitFactor}</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Max Drawdown</div>
+                            <div class="metric-value ${parseFloat(summary.maxDrawdown) > 20 ? 'negative' : ''}">
+                                ${summary.maxDrawdown}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="summary-section">
+                    <div class="summary-title">
+                        <span>📈</span> ANÁLISIS DE RIESGO
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-label">Nivel de Riesgo</div>
+                            <div class="metric-value ${summary.riskLevel === 'Alto' ? 'negative' : summary.riskLevel === 'Moderado' ? 'neutral' : ''}">
+                                ${summary.riskLevel}
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Ratio de Sharpe</div>
+                            <div class="metric-value">${summary.sharpeRatio}</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Expectancy</div>
+                            <div class="metric-value">${summary.expectancy}</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Total Trades</div>
+                            <div class="metric-value">${summary.totalTrades}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="summary-section">
+                    <div class="summary-title">
+                        <span>💡</span> CONCLUSIÓN
+                    </div>
+                    <div style="padding: 15px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                        <div style="font-size: 12px; color: var(--muted); line-height: 1.5;">
+                            ${summary.conclusion}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            summaryContent.innerHTML = html;
+        }
+
+        function generateTradesPreview() {
+            if (!reportData.trades || reportData.trades.length === 0) return;
+            
+            const tradesContent = document.getElementById('tradesContent');
+            const previewTrades = reportData.trades.slice(0, 20); // Mostrar solo 20 trades en preview
+            
+            let html = `<table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha</th>
+                        <th>Instrumento</th>
+                        <th>Tipo</th>
+                        <th>P&L</th>
+                        <th>Resultado</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            previewTrades.forEach(trade => {
+                html += `
+                    <tr>
+                        <td>${trade.id}</td>
+                        <td>${trade.date}</td>
+                        <td>${trade.instrument}</td>
+                        <td>${trade.type}</td>
+                        <td style="color: ${trade.pnl >= 0 ? 'var(--neon-green)' : 'var(--neon-red)'}">
+                            ${trade.pnl >= 0 ? '+' : ''}${trade.pnl?.toFixed(2) || '0.00'}
+                        </td>
+                        <td>
+                            <span style="color: ${trade.win ? 'var(--neon-green)' : 'var(--neon-red)'}">
+                                ${trade.win ? '✅' : '❌'}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `</tbody></table>`;
+            
+            if (reportData.trades.length > 20) {
+                html += `<div style="text-align: center; padding: 10px; font-size: 10px; color: var(--muted);">
+                    Mostrando 20 de ${reportData.trades.length} trades
+                </div>`;
+            }
+            
+            tradesContent.innerHTML = html;
+        }
+
+        function generateMetricsPreview() {
+            if (!reportData.report?.metrics) return;
+            
+            const metricsContent = document.getElementById('metricsContent');
+            const metrics = reportData.report.metrics;
+            
+            let html = `
+                <div class="summary-section">
+                    <div class="summary-title">
+                        <span>📊</span> MÉTRICAS BÁSICAS
+                    </div>
+                    <div class="metrics-grid">
+            `;
+            
+            if (metrics.basic) {
+                Object.entries(metrics.basic).forEach(([key, value]) => {
+                    const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                    const formattedValue = typeof value === 'number' ? 
+                        (key.includes('Rate') || key.includes('drawdown') ? value.toFixed(2) + '%' : 
+                         key.includes('Profit') || key.includes('Win') || key.includes('Loss') ? '$' + value.toFixed(2) :
+                         value.toFixed(2)) : 
+                        value;
+                    
+                    html += `
+                        <div class="metric-item">
+                            <div class="metric-label">${formattedKey}</div>
+                            <div class="metric-value">${formattedValue}</div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `</div></div>`;
+            
+            if (metrics.advanced) {
+                html += `
+                    <div class="summary-section">
+                        <div class="summary-title">
+                            <span>📈</span> MÉTRICAS AVANZADAS
+                        </div>
+                        <div class="metrics-grid">
+                `;
+                
+                Object.entries(metrics.advanced).forEach(([key, value]) => {
+                    const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                    const formattedValue = typeof value === 'number' ? value.toFixed(2) : value;
+                    
+                    html += `
+                        <div class="metric-item">
+                            <div class="metric-label">${formattedKey}</div>
+                            <div class="metric-value">${formattedValue}</div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div></div>`;
+            }
+            
+            metricsContent.innerHTML = html;
+        }
+
+        function generateChartsPreview() {
+            const chartsContent = document.getElementById('chartsContent');
+            
+            const charts = [
+                { title: 'Curva de Equity', icon: '📈', type: 'equity' },
+                { title: 'Drawdown', icon: '📉', type: 'drawdown' },
+                { title: 'Distribución Trades', icon: '📊', type: 'distribution' },
+                { title: 'Retornos Mensuales', icon: '📅', type: 'monthly' },
+                { title: 'Win Rate por Instrumento', icon: '💹', type: 'instrument' },
+                { title: 'Análisis Temporal', icon: '⏰', type: 'time' }
+            ];
+            
+            let html = '';
+            
+            charts.forEach(chart => {
+                html += `
+                    <div class="chart-preview-item">
+                        <div class="chart-preview-title">${chart.icon} ${chart.title}</div>
+                        <div class="chart-preview-placeholder">
+                            ${chart.icon}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            chartsContent.innerHTML = html;
+        }
+
+        function generateRawPreview() {
+            if (!reportData.report) return;
+            
+            const rawContent = document.getElementById('rawContent');
+            const report = reportData.report;
+            
+            // Limitar la cantidad de datos mostrados en preview
+            const previewData = {
+                metadata: report.metadata,
+                summary: report.summary,
+                metrics: report.metrics ? {
+                    basic: report.metrics.basic ? '...' : undefined,
+                    advanced: report.metrics.advanced ? '...' : undefined
+                } : undefined,
+                tradesCount: report.trades?.length || 0,
+                recommendationsCount: report.recommendations?.length || 0
+            };
+            
+            rawContent.textContent = JSON.stringify(previewData, null, 2);
+        }
+
+        // ===== EXPORTACIÓN =====
+        function exportReport() {
+            if (!reportData.report) {
+                showNotification('Primero genera el reporte', 'warning');
+                return;
+            }
+            
+            switch(currentReportType) {
+                case 'csv':
+                    exportToCSV();
+                    break;
+                case 'json':
+                    exportToJSON();
+                    break;
+                case 'pdf':
+                    showNotification('Exportación PDF disponible en próxima versión', 'warning');
+                    break;
+                default:
+                    exportToJSON();
+            }
+        }
+
+        function exportToCSV() {
+            try {
+                const separator = document.getElementById('csvSeparator').value;
+                const includeHeaders = document.getElementById('csvHeaders').checked;
+                const decimalSeparator = document.getElementById('csvDecimal').value;
+                
+                // Crear CSV para trades
+                let csvContent = '';
+                
+                if (selectedContent.trades && reportData.trades && reportData.trades.length > 0) {
+                    // Headers
+                    if (includeHeaders) {
+                        const headers = Object.keys(reportData.trades[0]);
+                        csvContent += headers.join(separator) + '\n';
+                    }
+                    
+                    // Data
+                    reportData.trades.forEach(trade => {
+                        const row = Object.values(trade).map(value => {
+                            if (typeof value === 'number') {
+                                return value.toString().replace('.', decimalSeparator);
+                            }
+                            return `"${value}"`;
+                        }).join(separator);
+                        csvContent += row + '\n';
+                    });
+                }
+                
+                // Agregar métricas
+                if (selectedContent.basic || selectedContent.advanced) {
+                    csvContent += '\n' + separator + 'METRICAS' + separator + '\n';
+                    
+                    if (selectedContent.basic && reportData.report.metrics.basic) {
+                        Object.entries(reportData.report.metrics.basic).forEach(([key, value]) => {
+                            csvContent += key + separator + value + '\n';
+                        });
+                    }
+                    
+                    if (selectedContent.advanced && reportData.report.metrics.advanced) {
+                        csvContent += '\n' + separator + 'METRICAS AVANZADAS' + separator + '\n';
+                        Object.entries(reportData.report.metrics.advanced).forEach(([key, value]) => {
+                            csvContent += key + separator + value + '\n';
+                        });
+                    }
+                }
+                
+                const filename = getExportFilename('csv');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                downloadFile(blob, filename);
+                
+                recordExport('csv', filename, csvContent.length);
+                showNotification('Reporte CSV exportado exitosamente', 'success');
+                
+            } catch (error) {
+                console.error('Error exportando CSV:', error);
+                showNotification('Error exportando CSV', 'error');
+            }
+        }
+
+        function exportToJSON() {
+            try {
+                const format = document.getElementById('jsonFormat').value;
+                const includeMetadata = document.getElementById('jsonMetadata').checked;
+                
+                let exportData = { ...reportData.report };
+                
+                // Filtrar según selección de contenido
+                if (!selectedContent.trades) delete exportData.trades;
+                if (!selectedContent.basic && exportData.metrics) delete exportData.metrics.basic;
+                if (!selectedContent.advanced && exportData.metrics) delete exportData.metrics.advanced;
+                if (!selectedContent.charts) delete exportData.charts;
+                
+                if (!includeMetadata) delete exportData.metadata;
+                
+                let jsonContent;
+                switch(format) {
+                    case 'pretty':
+                        jsonContent = JSON.stringify(exportData, null, 2);
+                        break;
+                    case 'compact':
+                        jsonContent = JSON.stringify(exportData, null, 1);
+                        break;
+                    case 'minified':
+                        jsonContent = JSON.stringify(exportData);
+                        break;
+                    default:
+                        jsonContent = JSON.stringify(exportData, null, 2);
+                }
+                
+                const filename = getExportFilename('json');
+                const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+                downloadFile(blob, filename);
+                
+                recordExport('json', filename, jsonContent.length);
+                showNotification('Reporte JSON exportado exitosamente', 'success');
+                
+            } catch (error) {
+                console.error('Error exportando JSON:', error);
+                showNotification('Error exportando JSON', 'error');
+            }
+        }
+
+        function exportAllFormats() {
+            if (!reportData.report) {
+                showNotification('Primero genera el reporte', 'warning');
+                return;
+            }
+            
+            showNotification('Exportando en todos los formatos...', 'info');
+            
+            // Exportar CSV
+            currentReportType = 'csv';
+            exportToCSV();
+            
+            // Exportar JSON
+            setTimeout(() => {
+                currentReportType = 'json';
+                exportToJSON();
+                
+                showNotification('Todos los formatos exportados', 'success');
+            }, 1000);
+        }
+
+        function generateBatchExport() {
+            showNotification('Generando exportación por lotes...', 'info');
+            
+            // Simular generación de batch
+            setTimeout(() => {
+                const startDate = document.getElementById('batchStartDate').value;
+                const endDate = document.getElementById('batchEndDate').value;
+                const batchType = document.querySelector('.batch-option.selected').dataset.batch;
+                
+                // En una implementación real, aquí se filtrarían los trades por fecha
+                const batchData = {
+                    batchType: batchType,
+                    dateRange: { start: startDate, end: endDate },
+                    tradesInRange: reportData.trades?.length || 0,
+                    generatedAt: new Date().toISOString()
+                };
+                
+                const filename = `batch_${batchType}_${startDate}_to_${endDate}.json`;
+                const blob = new Blob([JSON.stringify(batchData, null, 2)], { type: 'application/json' });
+                downloadFile(blob, filename);
+                
+                showNotification(`Lote ${batchType} exportado exitosamente`, 'success');
+            }, 1500);
+        }
+
+        function toggleBatchExport() {
+            const panel = document.getElementById('batchExportPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // ===== UTILIDADES =====
+        function getExportFilename(defaultExtension) {
+            let filename = document.getElementById('reportFilename').value.trim();
+            if (!filename) filename = 'reporte_trading';
+            
+            const extension = document.getElementById('reportExtension').value;
+            let finalExtension = defaultExtension;
+            
+            if (extension !== 'auto') {
+                finalExtension = extension;
+            }
+            
+            return `${filename}_${new Date().toISOString().slice(0, 10)}.${finalExtension}`;
+        }
+
+        function downloadFile(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function recordExport(format, filename, size) {
+            const exportRecord = {
+                format: format,
+                filename: filename,
+                size: size,
+                timestamp: new Date().toISOString(),
+                contentTypes: Object.keys(selectedContent).filter(k => selectedContent[k])
+            };
+            
+            exportHistory.push(exportRecord);
+            
+            // Actualizar UI
+            document.getElementById('lastExport').textContent = new Date().toLocaleTimeString();
+            document.getElementById('reportGenerated').textContent = 'Sí';
+            document.getElementById('reportGenerated').style.color = 'var(--neon-green)';
+            
+            // Actualizar tamaño en KB
+            const sizeKB = (size / 1024).toFixed(1);
+            document.getElementById('reportSize').textContent = sizeKB + ' KB';
+            
+            // Actualizar número de trades
+            document.getElementById('reportTrades').textContent = reportData.trades?.length || 0;
+            
+            // Guardar en localStorage
+            saveToLocalStorage();
+        }
+
+        function updateProgress(percent, message) {
+            document.getElementById('exportProgressBar').style.width = percent + '%';
+            document.getElementById('exportStep').textContent = message;
+            document.getElementById('exportPercent').textContent = percent + '%';
+        }
+
+        function updateReportInfo() {
+            if (!reportData.report) return;
+            
+            const tradesCount = reportData.trades?.length || 0;
+            const estimatedSize = tradesCount * 100; // Estimación aproximada
+            
+            document.getElementById('reportSize').textContent = Math.round(estimatedSize / 1024) + ' KB';
+            document.getElementById('reportTrades').textContent = tradesCount;
+        }
+
+        function enableReportButtons() {
+            if (importedData) {
+                document.getElementById('generateReportBtn').disabled = false;
+                document.getElementById('previewReportBtn').disabled = false;
+            }
+        }
+
+        // ===== NOTIFICACIONES =====
+        function showNotification(message, type = 'info') {
+            const oldNotifications = document.querySelectorAll('[data-notification]');
+            if (oldNotifications.length > 3) {
+                oldNotifications[0].remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.setAttribute('data-notification', 'true');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 4px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                border: 1px solid;
+                max-width: 400px;
+                word-wrap: break-word;
+                font-size: 14px;
+            `;
+            
+            const colors = {
+                success: { bg: 'rgba(0, 255, 136, 0.95)', border: 'rgba(0, 255, 136, 0.7)', icon: '✅' },
+                error: { bg: 'rgba(255, 85, 85, 0.95)', border: 'rgba(255, 85, 85, 0.7)', icon: '❌' },
+                warning: { bg: 'rgba(255, 193, 7, 0.95)', border: 'rgba(255, 193, 7, 0.7)', icon: '⚠️', color: '#000' },
+                info: { bg: 'rgba(0, 240, 255, 0.95)', border: 'rgba(0, 240, 255, 0.7)', icon: 'ℹ️' }
+            };
+            
+            const color = colors[type] || colors.info;
+            notification.style.background = color.bg;
+            notification.style.borderColor = color.border;
+            if (color.color) notification.style.color = color.color;
+            
+            notification.textContent = `${color.icon} ${message}`;
+            document.body.appendChild(notification);
+            
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOut {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        // ===== LOCAL STORAGE =====
+        function saveToLocalStorage() {
+            try {
+                const data = {
+                    importedData,
+                    reportData,
+                    selectedContent,
+                    currentReportType,
+                    exportHistory: exportHistory.slice(-10), // Guardar solo últimos 10
+                    settings: {
+                        csvSeparator: document.getElementById('csvSeparator').value,
+                        csvHeaders: document.getElementById('csvHeaders').checked,
+                        csvDecimal: document.getElementById('csvDecimal').value,
+                        jsonFormat: document.getElementById('jsonFormat').value,
+                        jsonMetadata: document.getElementById('jsonMetadata').checked,
+                        includeSummary: document.getElementById('includeSummary').checked,
+                        includeRecommendations: document.getElementById('includeRecommendations').checked,
+                        compressFiles: document.getElementById('compressFiles').checked,
+                        reportFilename: document.getElementById('reportFilename').value,
+                        reportExtension: document.getElementById('reportExtension').value
+                    },
+                    savedAt: new Date().toISOString()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (error) {
+                console.warn('Error guardando datos:', error);
+            }
+        }
+
+        function loadSavedData() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    
+                    importedData = data.importedData;
+                    reportData = data.reportData;
+                    selectedContent = data.selectedContent || selectedContent;
+                    currentReportType = data.currentReportType || 'csv';
+                    exportHistory = data.exportHistory || [];
+                    
+                    if (data.settings) {
+                        document.getElementById('csvSeparator').value = data.settings.csvSeparator || ',';
+                        document.getElementById('csvHeaders').checked = data.settings.csvHeaders || true;
+                        document.getElementById('csvDecimal').value = data.settings.csvDecimal || '.';
+                        document.getElementById('jsonFormat').value = data.settings.jsonFormat || 'pretty';
+                        document.getElementById('jsonMetadata').checked = data.settings.jsonMetadata || true;
+                        document.getElementById('includeSummary').checked = data.settings.includeSummary || true;
+                        document.getElementById('includeRecommendations').checked = data.settings.includeRecommendations || true;
+                        document.getElementById('compressFiles').checked = data.settings.compressFiles || false;
+                        document.getElementById('reportFilename').value = data.settings.reportFilename || 'reporte_trading';
+                        document.getElementById('reportExtension').value = data.settings.reportExtension || 'auto';
+                    }
+                    
+                    // Actualizar selectores de contenido
+                    document.querySelectorAll('.content-option').forEach(option => {
+                        const contentType = option.dataset.content;
+                        const checkbox = option.querySelector('.content-checkbox');
+                        
+                        if (selectedContent[contentType]) {
+                            checkbox.classList.add('checked');
+                            option.classList.add('selected');
+                        } else {
+                            checkbox.classList.remove('checked');
+                            option.classList.remove('selected');
+                        }
+                    });
+                    
+                    // Actualizar tipo de reporte
+                    document.querySelectorAll('.report-type-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.type === currentReportType) {
+                            btn.classList.add('active');
+                        }
+                    });
+                    
+                    // Mostrar opciones específicas
+                    document.getElementById('csvOptions').style.display = currentReportType === 'csv' ? 'block' : 'none';
+                    document.getElementById('jsonOptions').style.display = currentReportType === 'json' ? 'block' : 'none';
+                    
+                    if (importedData) {
+                        enableReportButtons();
+                        updateImportStats(
+                            {name: importedData.filename || 'datos_guardados.json'}, 
+                            importedData.source
+                        );
+                        
+                        if (reportData) {
+                            document.getElementById('exportReportBtn').disabled = false;
+                            document.getElementById('exportAllBtn').disabled = false;
+                            updateReportInfo();
+                            generatePreview();
+                        }
+                    }
+                    
+                    if (exportHistory.length > 0) {
+                        const lastExport = exportHistory[exportHistory.length - 1];
+                        document.getElementById('lastExport').textContent = 
+                            new Date(lastExport.timestamp).toLocaleTimeString();
+                    }
+                    
+                    showNotification('Datos cargados desde almacenamiento local', 'info');
+                }
+            } catch (error) {
+                console.warn('Error cargando datos:', error);
+            }
+        }
+
+        // ===== MANEJO DE REDIMENSIÓN =====
+        window.addEventListener('resize', function() {
+            // Actualizar vistas previas si es necesario
+        });
+
+        // Auto-guardar cuando se cierra la página
+        window.addEventListener('beforeunload', function() {
+            saveToLocalStorage();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,3201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADING ANALYTICS | CALCULADORA DE RIESGO</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Simple Statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <style>
+        /* ===== ESTILOS CYBERPUNK (MISMO QUE PROGRAMA 7) ===== */
+        :root {
+            --bg-1: #06060a;
+            --bg-2: #0b0011;
+            --neon-cyan: #00f0ff;
+            --neon-blue: #6f5cff;
+            --neon-magenta: #ff4cff;
+            --neon-green: #00ff88;
+            --neon-red: #ff5555;
+            --neon-yellow: #ffff00;
+            --neon-orange: #ff8c00;
+            --neon-purple: #a855f7;
+            --muted: rgba(230, 238, 248, 0.55);
+            --card-bg: rgba(20, 20, 40, 0.85);
+            --glow-cyan: 0 0 10px rgba(0, 240, 255, 0.5);
+            --glow-green: 0 0 10px rgba(0, 255, 136, 0.5);
+            --glow-red: 0 0 10px rgba(255, 85, 85, 0.5);
+            --glow-yellow: 0 0 10px rgba(255, 255, 0, 0.5);
+            --radius: 8px;
+            --border-thin: 1px solid rgba(0, 240, 255, 0.2);
+            font-family: 'Segoe UI', 'Courier New', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-1);
+            color: #dfefff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.03) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 255, 0.03) 0%, transparent 20%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .app-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            border-bottom: var(--border-thin);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            animation: scanline 3s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: var(--glow-cyan);
+            letter-spacing: 1px;
+        }
+
+        .system-info {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+        }
+
+        .info-badge {
+            background: rgba(0, 240, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: var(--border-thin);
+        }
+
+        /* MAIN LAYOUT */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .section-title {
+            color: var(--neon-cyan);
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: var(--border-thin);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* IMPORT PANEL */
+        .import-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .file-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .file-type-btn {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            height: 70px;
+        }
+
+        .file-type-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            transform: translateY(-2px);
+        }
+
+        .file-type-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .file-type-icon {
+            font-size: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue));
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(90deg, var(--neon-green), rgba(0, 255, 136, 0.7));
+            color: #000;
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, var(--neon-red), rgba(255, 85, 85, 0.7));
+            color: #000;
+        }
+
+        .btn-warning {
+            background: linear-gradient(90deg, var(--neon-yellow), rgba(255, 255, 0, 0.7));
+            color: #000;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* DATA STATS */
+        .data-stats {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.05);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat-value {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* CONFIGURATION PANEL */
+        .config-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-label {
+            color: var(--muted);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .config-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            padding: 10px;
+            color: var(--neon-cyan);
+            font-family: inherit;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* SLIDER WITH VALUE */
+        .slider-with-value {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .slider-value {
+            min-width: 70px;
+            text-align: center;
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: 14px;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            outline: none;
+            margin: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        /* SIMULATION CONTROLS */
+        .sim-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* RESULTS PANEL */
+        .results-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .result-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            text-align: center;
+            transition: all 0.3s;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .result-card:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .result-title {
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .result-subtext {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* CHARTS SECTION */
+        .charts-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .chart-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: var(--border-thin);
+            flex-wrap: wrap;
+        }
+
+        .chart-tab {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .chart-tab:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .chart-tab.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .chart-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .chart-wrapper {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            height: 400px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-title {
+            color: var(--neon-cyan);
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* SCENARIO SELECTOR */
+        .scenario-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .scenario-btn {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .scenario-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .scenario-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* ADVANCED OPTIONS */
+        .advanced-options {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: var(--border-thin);
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .option-label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* SWITCH TOGGLE */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--neon-cyan);
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* EXPORT PANEL */
+        .export-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .export-formats {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .format-btn {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .format-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+        }
+
+        .format-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* UTILITIES */
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--neon-cyan), var(--neon-magenta));
+            border-radius: 3px;
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .scenario-selector {
+                grid-template-columns: 1fr;
+            }
+            
+            .sim-controls {
+                flex-direction: column;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+
+        /* NEW STYLES SPECIFIC TO RISK CALCULATOR */
+        .instrument-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .instrument-btn {
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 11px;
+        }
+
+        .instrument-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .instrument-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .pip-value-display {
+            background: linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(168, 85, 247, 0.1));
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: var(--radius);
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .pip-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--neon-purple);
+            margin: 10px 0;
+        }
+
+        .commission-calculator {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .trade-summary {
+            background: linear-gradient(90deg, rgba(0, 255, 136, 0.1), rgba(0, 240, 255, 0.1));
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+        }
+
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            color: var(--muted);
+        }
+
+        .summary-value {
+            color: var(--neon-green);
+            font-weight: 600;
+        }
+
+        .lot-size-calculator {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .lot-option {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .lot-option:hover {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: var(--neon-cyan);
+        }
+
+        .lot-option.selected {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .lot-size {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--neon-cyan);
+            margin-bottom: 5px;
+        }
+
+        .lot-label {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .risk-meter {
+            height: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .risk-level {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .risk-level.safe {
+            background: linear-gradient(90deg, var(--neon-green), rgba(0, 255, 136, 0.7));
+        }
+
+        .risk-level.warning {
+            background: linear-gradient(90deg, var(--neon-yellow), rgba(255, 255, 0, 0.7));
+        }
+
+        .risk-level.danger {
+            background: linear-gradient(90deg, var(--neon-red), rgba(255, 85, 85, 0.7));
+        }
+
+        .quick-calc-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .quick-calc-btn {
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 11px;
+        }
+
+        .quick-calc-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .currency-selector {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .currency-option {
+            flex: 1;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .currency-option:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .currency-option.selected {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div style="width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(45deg, var(--neon-cyan), var(--neon-magenta));"></div>
+                <div>
+                    <h1>TRADING ANALYTICS | CALCULADORA DE RIESGO</h1>
+                    <div style="font-size: 12px; color: var(--muted);">Cálculo preciso de posición y riesgo por trade</div>
+                </div>
+            </div>
+            <div class="system-info">
+                <div class="info-badge">
+                    <span>💰</span> Estado: <strong id="systemStatus" style="color: var(--neon-yellow);">Esperando datos</strong>
+                </div>
+                <div class="info-badge">
+                    <span>⚡</span> Programa: <strong style="color: var(--neon-cyan);">8/9</strong>
+                </div>
+                <div class="info-badge">
+                    <span>🔗</span> Conexión: <strong id="connectionStatus" style="color: var(--neon-green);">Standalone</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- === SECCIÓN DE IMPORTACIÓN === -->
+                <div class="import-panel">
+                    <div class="section-title">
+                        <span>📤</span> 8.1 ENTRADA DE DATOS
+                    </div>
+                    
+                    <div class="file-types">
+                        <div class="file-type-btn active" data-type="management" id="managementBtn">
+                            <div class="file-type-icon">📊</div>
+                            <div>Gestión de Cuenta</div>
+                            <input type="file" id="managementInput" class="file-input" accept=".json">
+                        </div>
+                        <div class="file-type-btn" data-type="manual" id="manualBtn">
+                            <div class="file-type-icon">✍️</div>
+                            <div>Configuración Manual</div>
+                        </div>
+                        <div class="file-type-btn" data-type="quick" id="quickBtn">
+                            <div class="file-type-icon">⚡</div>
+                            <div>Cálculo Rápido</div>
+                        </div>
+                        <div class="file-type-btn" data-type="template" id="templateBtn">
+                            <div class="file-type-icon">📋</div>
+                            <div>Plantilla Guardada</div>
+                            <input type="file" id="templateInput" class="file-input" accept=".json">
+                        </div>
+                    </div>
+
+                    <div class="data-stats" id="importStats">
+                        <div class="stat-item">
+                            <span class="stat-label">Fuente:</span>
+                            <span class="stat-value" id="dataSource">Ninguna</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Capital:</span>
+                            <span class="stat-value" id="importedCapital">$0.00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Riesgo:</span>
+                            <span class="stat-value" id="importedRisk">0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Estado:</span>
+                            <span class="stat-value" id="importStatus" style="color: var(--neon-yellow);">Pendiente</span>
+                        </div>
+                    </div>
+
+                    <!-- Manual Configuration -->
+                    <div id="manualConfig" style="display: none; margin-top: 15px;">
+                        <div class="section-title" style="font-size: 14px;">
+                            <span>⚙️</span> CONFIGURACIÓN MANUAL
+                        </div>
+                        
+                        <div class="config-grid">
+                            <!-- 8.1.1 Capital -->
+                            <div class="config-group">
+                                <div class="config-label">
+                                    <span>💰</span> 8.1.1 Capital ($)
+                                </div>
+                                <input type="number" id="manualCapital" class="config-input" value="10000" min="100" step="100">
+                            </div>
+                            
+                            <!-- 8.1.2 % Riesgo -->
+                            <div class="config-group">
+                                <div class="config-label">
+                                    <span>⚠️</span> 8.1.2 % Riesgo por Trade
+                                </div>
+                                <div class="slider-with-value">
+                                    <input type="range" id="manualRiskSlider" min="0.1" max="10" value="2" step="0.1" class="config-input">
+                                    <div class="slider-value" id="manualRiskValue">2.0%</div>
+                                </div>
+                                <div class="quick-calc-buttons">
+                                    <div class="quick-calc-btn" data-risk="0.5">0.5%</div>
+                                    <div class="quick-calc-btn" data-risk="1">1%</div>
+                                    <div class="quick-calc-btn" data-risk="2">2%</div>
+                                    <div class="quick-calc-btn" data-risk="3">3%</div>
+                                </div>
+                            </div>
+                            
+                            <!-- 8.1.3 SL en Puntos -->
+                            <div class="config-group">
+                                <div class="config-label">
+                                    <span>🎯</span> 8.1.3 Stop Loss (Puntos)
+                                </div>
+                                <input type="number" id="manualStopLoss" class="config-input" value="50" min="1" step="1">
+                                <div class="quick-calc-buttons">
+                                    <div class="quick-calc-btn" data-sl="20">20 pts</div>
+                                    <div class="quick-calc-btn" data-sl="50">50 pts</div>
+                                    <div class="quick-calc-btn" data-sl="100">100 pts</div>
+                                    <div class="quick-calc-btn" data-sl="200">200 pts</div>
+                                </div>
+                            </div>
+                            
+                            <button class="btn btn-success" id="applyManualConfig">
+                                <span>✅</span> Aplicar Configuración
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Calculation -->
+                    <div id="quickConfig" style="display: none; margin-top: 15px;">
+                        <div class="section-title" style="font-size: 14px;">
+                            <span>⚡</span> CÁLCULO RÁPIDO
+                        </div>
+                        
+                        <div class="scenario-selector">
+                            <div class="scenario-btn" data-scenario="conservative">
+                                <div style="font-size: 10px; color: var(--neon-cyan);">Conservador</div>
+                                <div style="font-size: 11px; margin-top: 2px;">1% riesgo</div>
+                            </div>
+                            <div class="scenario-btn active" data-scenario="moderate">
+                                <div style="font-size: 10px; color: var(--neon-yellow);">Moderado</div>
+                                <div style="font-size: 11px; margin-top: 2px;">2% riesgo</div>
+                            </div>
+                            <div class="scenario-btn" data-scenario="aggressive">
+                                <div style="font-size: 10px; color: var(--neon-red);">Agresivo</div>
+                                <div style="font-size: 11px; margin-top: 2px;">3% riesgo</div>
+                            </div>
+                        </div>
+                        
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>💰</span> Capital Rápido ($)
+                            </div>
+                            <input type="number" id="quickCapital" class="config-input" value="5000" min="100" step="100">
+                        </div>
+                        
+                        <button class="btn btn-primary" id="applyQuickConfig">
+                            <span>🚀</span> Calcular Rápidamente
+                        </button>
+                    </div>
+                </div>
+                <!-- === FIN SECCIÓN IMPORTACIÓN === -->
+
+                <!-- 8.2 RESULTADOS -->
+                <div class="results-panel">
+                    <div class="section-title">
+                        <span>📊</span> 8.2 RESULTADOS
+                    </div>
+                    
+                    <div class="results-grid">
+                        <!-- 8.2.1 Riesgo monetario -->
+                        <div class="result-card">
+                            <div class="result-title">8.2.1 Riesgo Monetario</div>
+                            <div class="result-value" id="monetaryRiskValue" style="color: var(--neon-red);">$0.00</div>
+                            <div class="result-subtext">Por trade</div>
+                        </div>
+                        
+                        <!-- 8.2.2 Tamaño recomendado -->
+                        <div class="result-card">
+                            <div class="result-title">8.2.2 Tamaño Recomendado</div>
+                            <div class="result-value" id="recommendedSizeValue" style="color: var(--neon-green);">0.00</div>
+                            <div class="result-subtext">Lots / Units</div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Meter -->
+                    <div class="risk-meter">
+                        <div class="risk-level" id="riskLevelIndicator" style="width: 0%;"></div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 15px;">
+                        <span>Bajo</span>
+                        <span>Moderado</span>
+                        <span>Alto</span>
+                    </div>
+
+                    <!-- Trade Summary -->
+                    <div class="trade-summary">
+                        <div class="summary-row">
+                            <span class="summary-label">Capital Total:</span>
+                            <span class="summary-value" id="summaryCapital">$0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Riesgo por Trade:</span>
+                            <span class="summary-value" id="summaryRiskPercent">0%</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Stop Loss:</span>
+                            <span class="summary-value" id="summaryStopLoss">0 pts</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Valor por Punto:</span>
+                            <span class="summary-value" id="summaryPipValue">$0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Margen Requerido:</span>
+                            <span class="summary-value" id="summaryMargin">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 8.3 EXTENSIONES -->
+                <div class="config-panel">
+                    <div class="section-title">
+                        <span>🔧</span> 8.3 EXTENSIONES
+                    </div>
+                    
+                    <div class="config-grid">
+                        <!-- 8.3.1 Valor del pip -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>📐</span> 8.3.1 Valor del Pip
+                            </div>
+                            <div class="instrument-selector">
+                                <div class="instrument-btn" data-pair="EURUSD">EUR/USD</div>
+                                <div class="instrument-btn" data-pair="GBPUSD">GBP/USD</div>
+                                <div class="instrument-btn" data-pair="USDJPY">USD/JPY</div>
+                                <div class="instrument-btn" data-pair="AUDUSD">AUD/USD</div>
+                                <div class="instrument-btn" data-pair="USDCHF">USD/CHF</div>
+                                <div class="instrument-btn" data-pair="USDCAD">USD/CAD</div>
+                                <div class="instrument-btn" data-pair="XAUUSD">XAU/USD</div>
+                                <div class="instrument-btn" data-pair="BTCUSD">BTC/USD</div>
+                            </div>
+                            <div class="pip-value-display">
+                                <div style="font-size: 10px; color: var(--muted);">Valor del Pip (1 lote estándar)</div>
+                                <div class="pip-value" id="pipValueDisplay">$10.00</div>
+                                <div style="font-size: 10px; color: var(--muted);">Par seleccionado: <span id="selectedPair">EUR/USD</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 8.3.2 Spread -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>↔️</span> 8.3.2 Spread (puntos)
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="spreadSlider" min="0" max="50" value="10" step="0.1" class="config-input">
+                                <div class="slider-value" id="spreadValue">10.0</div>
+                            </div>
+                            <div style="font-size: 10px; color: var(--muted); margin-top: 5px;">
+                                Costo: <span id="spreadCost">$0.00</span> por trade
+                            </div>
+                        </div>
+                        
+                        <!-- 8.3.3 Comisión dinámica -->
+                        <div class="commission-calculator">
+                            <div class="config-label">
+                                <span>💳</span> 8.3.3 Comisión Dinámica
+                            </div>
+                            <div class="option-row">
+                                <span class="option-label">Comisión por lote ($)</span>
+                                <input type="number" id="commissionPerLot" class="config-input" style="width: 100px; text-align: center;" value="5" min="0" step="0.1">
+                            </div>
+                            <div class="option-row">
+                                <span class="option-label">Comisión por side</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="commissionPerSide">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 10px; color: var(--muted); margin-top: 10px;">
+                                Comisión total: <span id="totalCommission" style="color: var(--neon-yellow);">$0.00</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Lot Size Calculator -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>📦</span> Tamaños de Lote
+                            </div>
+                            <div class="lot-size-calculator">
+                                <div class="lot-option" data-lot="0.01">
+                                    <div class="lot-size">0.01</div>
+                                    <div class="lot-label">Micro</div>
+                                </div>
+                                <div class="lot-option" data-lot="0.1">
+                                    <div class="lot-size">0.10</div>
+                                    <div class="lot-label">Mini</div>
+                                </div>
+                                <div class="lot-option selected" data-lot="1">
+                                    <div class="lot-size">1.00</div>
+                                    <div class="lot-label">Estándar</div>
+                                </div>
+                                <div class="lot-option" data-lot="10">
+                                    <div class="lot-size">10.00</div>
+                                    <div class="lot-label">Grande</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Currency -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>💱</span> Moneda de Cuenta
+                            </div>
+                            <div class="currency-selector">
+                                <div class="currency-option selected" data-currency="USD">USD</div>
+                                <div class="currency-option" data-currency="EUR">EUR</div>
+                                <div class="currency-option" data-currency="GBP">GBP</div>
+                                <div class="currency-option" data-currency="JPY">JPY</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Botones de acción -->
+                        <div class="sim-controls">
+                            <button class="btn btn-primary" id="calculateRiskBtn" disabled>
+                                <span>🧮</span> Calcular Riesgo
+                            </button>
+                            <button class="btn btn-secondary" id="saveTemplateBtn">
+                                <span>💾</span> Guardar Plantilla
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Análisis Visual -->
+                <div class="charts-section">
+                    <div class="section-title">
+                        <span>📈</span> ANÁLISIS VISUAL
+                    </div>
+                    
+                    <!-- Pestañas de gráficas -->
+                    <div class="chart-tabs" id="chartTabs">
+                        <div class="chart-tab active" data-chart="risk">Análisis de Riesgo</div>
+                        <div class="chart-tab" data-chart="position">Tamaños de Posición</div>
+                        <div class="chart-tab" data-chart="capital">Impacto en Capital</div>
+                        <div class="chart-tab" data-chart="compare">Comparación Escenarios</div>
+                        <div class="chart-tab" data-chart="advanced">Análisis Avanzado</div>
+                    </div>
+                    
+                    <!-- Contenedores de gráficas -->
+                    <div class="chart-container">
+                        <!-- Análisis de Riesgo -->
+                        <div class="chart-wrapper" id="riskChartWrapper">
+                            <div class="chart-title">
+                                <span>🎯</span> ANÁLISIS DE RIESGO POR STOP LOSS
+                            </div>
+                            <div class="chart-placeholder" id="riskPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-red); opacity: 0.3;">📊</div>
+                                <div style="color: var(--muted); max-width: 300px;">
+                                    <strong>Configura los parámetros para visualizar el análisis de riesgo</strong><br>
+                                    <small>Se mostrará riesgo vs tamaño de posición</small>
+                                </div>
+                            </div>
+                            <canvas id="riskChart" class="hidden"></canvas>
+                        </div>
+                        
+                        <!-- Tamaños de Posición -->
+                        <div class="chart-wrapper" id="positionChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>📦</span> TAMAÑOS DE POSICIÓN POR INSTRUMENTO
+                            </div>
+                            <div class="chart-placeholder" id="positionPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-green); opacity: 0.3;">📊</div>
+                                <div>Gráfica de tamaños de posición se generará aquí</div>
+                            </div>
+                            <canvas id="positionChart" class="hidden"></canvas>
+                        </div>
+                        
+                        <!-- Impacto en Capital -->
+                        <div class="chart-wrapper" id="capitalChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>💰</span> IMPACTO EN CAPITAL
+                            </div>
+                            <div class="chart-placeholder" id="capitalPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-cyan); opacity: 0.3;">📊</div>
+                                <div>Proyección de impacto en capital se generará aquí</div>
+                            </div>
+                            <canvas id="capitalChart" class="hidden"></canvas>
+                        </div>
+
+                        <!-- Comparación Escenarios -->
+                        <div class="chart-wrapper" id="compareChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>⚖️</span> COMPARACIÓN DE ESCENARIOS
+                            </div>
+                            <div class="chart-placeholder" id="comparePlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-yellow); opacity: 0.3;">📊</div>
+                                <div>Comparación de escenarios se generará aquí</div>
+                            </div>
+                            <canvas id="compareChart" class="hidden"></canvas>
+                        </div>
+
+                        <!-- Análisis Avanzado -->
+                        <div class="chart-wrapper" id="advancedChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>🔬</span> ANÁLISIS AVANZADO
+                            </div>
+                            <div class="chart-placeholder" id="advancedPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-purple); opacity: 0.3;">📊</div>
+                                <div>Análisis avanzado se generará aquí</div>
+                            </div>
+                            <canvas id="advancedChart" class="hidden"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exportación y Resumen -->
+                <div class="export-panel">
+                    <div class="section-title">
+                        <span>📤</span> EXPORTAR RESULTADOS
+                    </div>
+                    
+                    <div class="export-formats">
+                        <button class="format-btn active" data-format="execution">
+                            <span>⚡</span> Para Ejecución
+                        </button>
+                        <button class="format-btn" data-format="monitoring">
+                            <span>👁️</span> Para Monitoreo
+                        </button>
+                        <button class="format-btn" data-format="template">
+                            <span>📋</span> Plantilla Guardada
+                        </button>
+                        <button class="format-btn" data-format="next">
+                            <span>➡️</span> Para Siguiente Programa
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-primary" id="exportBtn" disabled>
+                            <span>💾</span> Exportar Seleccionado
+                        </button>
+                        <button class="btn btn-success" id="copyResultsBtn" disabled>
+                            <span>📋</span> Copiar al Portapapeles
+                        </button>
+                        <button class="btn btn-warning" id="optimizeBtn" disabled>
+                            <span>⚡</span> Optimizar Automáticamente
+                        </button>
+                    </div>
+
+                    <!-- Resumen de Exportación -->
+                    <div class="data-stats" style="margin-top: 15px;">
+                        <div class="stat-item">
+                            <span class="stat-label">Instrumento activo:</span>
+                            <span class="stat-value" id="exportInstrument">EUR/USD</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Tamaño posición:</span>
+                            <span class="stat-value" id="exportPositionSize">0.00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Riesgo monetario:</span>
+                            <span class="stat-value" id="exportMonetaryRisk">$0.00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Último cálculo:</span>
+                            <span class="stat-value" id="exportLastCalc">Nunca</span>
+                        </div>
+                    </div>
+
+                    <!-- Detalles de Exportación -->
+                    <div class="recommendation-box" style="margin-top: 15px;">
+                        <div class="recommendation-title">
+                            <span>🔧</span> DETALLES DE EXPORTACIÓN
+                        </div>
+                        <div class="recommendation-content" id="exportDetails">
+                            <strong>Formato para siguiente programa (9):</strong><br>
+                            • Tamaño de posición exacto por instrumento<br>
+                            • Stop loss en puntos por trade<br>
+                            • Riesgo monetario calculado<br>
+                            • Configuración de comisiones y spread<br>
+                            <small>El programa 9 usará estos datos para ejecución real o simulación de trades.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONFIGURACIÓN =====
+        const STORAGE_KEY = 'risk_calculator_v1';
+        const PIP_VALUES = {
+            'EURUSD': { value: 10.00, digits: 5 },
+            'GBPUSD': { value: 10.00, digits: 5 },
+            'USDJPY': { value: 9.09, digits: 3 },
+            'AUDUSD': { value: 10.00, digits: 5 },
+            'USDCHF': { value: 10.82, digits: 5 },
+            'USDCAD': { value: 7.58, digits: 5 },
+            'XAUUSD': { value: 1.00, digits: 2 },
+            'BTCUSD': { value: 0.01, digits: 2 }
+        };
+        
+        // ===== VARIABLES GLOBALES =====
+        let importedData = null;
+        let calculationResults = null;
+        let currentCharts = {};
+        let selectedFormat = 'execution';
+        let isCalculating = false;
+        let currentInstrument = 'EURUSD';
+        let currentCurrency = 'USD';
+        let selectedLotSize = 1.0;
+        let currentScenario = 'moderate';
+
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('CALCULADORA DE RIESGO - Sistema iniciado');
+            
+            // Cargar datos guardados
+            loadSavedData();
+            
+            // Configurar event listeners
+            setupEventListeners();
+            
+            // Configurar UI inicial
+            setupInitialUI();
+            
+            // Configurar sliders manuales
+            setupManualSliders();
+        });
+
+        // ===== CONFIGURACIÓN DE UI =====
+        function setupInitialUI() {
+            // Configurar file type buttons
+            document.querySelectorAll('.file-type-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'INPUT') return;
+                    
+                    const fileType = this.dataset.type;
+                    
+                    // Handle special cases
+                    if (fileType === 'manual') {
+                        showManualConfig();
+                        return;
+                    }
+                    
+                    if (fileType === 'quick') {
+                        showQuickConfig();
+                        return;
+                    }
+                    
+                    // For file inputs
+                    document.querySelectorAll('.file-type-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById(`${fileType}Input`).click();
+                });
+            });
+            
+            // Configurar format buttons
+            document.querySelectorAll('.format-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    selectedFormat = this.dataset.format;
+                    document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Configurar chart tabs
+            document.querySelectorAll('.chart-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const chartType = this.dataset.chart;
+                    showChart(chartType);
+                    
+                    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Configurar instrument buttons
+            document.querySelectorAll('.instrument-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    currentInstrument = this.dataset.pair;
+                    document.querySelectorAll('.instrument-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    updatePipValueDisplay();
+                    if (calculationResults) {
+                        recalculateWithCurrentInstrument();
+                    }
+                });
+            });
+            
+            // Configurar scenario buttons
+            document.querySelectorAll('.scenario-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    currentScenario = this.dataset.scenario;
+                    document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Aplicar configuración del escenario
+                    applyScenario(currentScenario);
+                });
+            });
+            
+            // Configurar lot size options
+            document.querySelectorAll('.lot-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    selectedLotSize = parseFloat(this.dataset.lot);
+                    document.querySelectorAll('.lot-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    if (calculationResults) {
+                        recalculateWithCurrentSettings();
+                    }
+                });
+            });
+            
+            // Configurar currency options
+            document.querySelectorAll('.currency-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    currentCurrency = this.dataset.currency;
+                    document.querySelectorAll('.currency-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    if (calculationResults) {
+                        recalculateWithCurrentSettings();
+                    }
+                });
+            });
+            
+            // Configurar quick calculation buttons
+            document.querySelectorAll('.quick-calc-btn[data-risk]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const risk = parseFloat(this.dataset.risk);
+                    document.getElementById('manualRiskSlider').value = risk;
+                    document.getElementById('manualRiskSlider').dispatchEvent(new Event('input'));
+                });
+            });
+            
+            document.querySelectorAll('.quick-calc-btn[data-sl]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const sl = parseInt(this.dataset.sl);
+                    document.getElementById('manualStopLoss').value = sl;
+                });
+            });
+            
+            // Configurar spread slider
+            const spreadSlider = document.getElementById('spreadSlider');
+            const spreadValue = document.getElementById('spreadValue');
+            spreadSlider.addEventListener('input', function() {
+                spreadValue.textContent = parseFloat(this.value).toFixed(1);
+                if (calculationResults) {
+                    recalculateWithCurrentSettings();
+                }
+            });
+            
+            // Configurar commission inputs
+            document.getElementById('commissionPerLot').addEventListener('input', function() {
+                if (calculationResults) {
+                    recalculateWithCurrentSettings();
+                }
+            });
+            
+            document.getElementById('commissionPerSide').addEventListener('change', function() {
+                if (calculationResults) {
+                    recalculateWithCurrentSettings();
+                }
+            });
+        }
+
+        function setupManualSliders() {
+            // Slider riesgo manual
+            const riskSlider = document.getElementById('manualRiskSlider');
+            const riskValue = document.getElementById('manualRiskValue');
+            riskSlider.addEventListener('input', function() {
+                riskValue.textContent = parseFloat(this.value).toFixed(1) + '%';
+            });
+        }
+
+        function setupEventListeners() {
+            // Input files
+            document.getElementById('managementInput').addEventListener('change', (e) => handleFileImport(e, 'management'));
+            document.getElementById('templateInput').addEventListener('change', (e) => handleFileImport(e, 'template'));
+            
+            // Botones
+            document.getElementById('applyManualConfig').addEventListener('click', applyManualConfiguration);
+            document.getElementById('applyQuickConfig').addEventListener('click', applyQuickConfiguration);
+            document.getElementById('calculateRiskBtn').addEventListener('click', calculateRisk);
+            document.getElementById('saveTemplateBtn').addEventListener('click', saveTemplate);
+            document.getElementById('exportBtn').addEventListener('click', exportData);
+            document.getElementById('copyResultsBtn').addEventListener('click', copyResultsToClipboard);
+            document.getElementById('optimizeBtn').addEventListener('click', optimizeAutomatically);
+        }
+
+        function showManualConfig() {
+            document.querySelectorAll('.file-type-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('manualBtn').classList.add('active');
+            document.getElementById('manualConfig').style.display = 'block';
+            document.getElementById('quickConfig').style.display = 'none';
+        }
+
+        function showQuickConfig() {
+            document.querySelectorAll('.file-type-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('quickBtn').classList.add('active');
+            document.getElementById('quickConfig').style.display = 'block';
+            document.getElementById('manualConfig').style.display = 'none';
+        }
+
+        // ===== FUNCIONES DE IMPORTACIÓN =====
+        function handleFileImport(event, fileType) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            console.log(`📥 Importando archivo ${fileType}:`, file.name);
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    const data = JSON.parse(content);
+                    
+                    if (fileType === 'management') {
+                        processManagementData(data, file.name);
+                    } else if (fileType === 'template') {
+                        processTemplateData(data, file.name);
+                    }
+                    
+                    updateImportStats(file, fileType);
+                    enableCalculationButton();
+                    showNotification(`Archivo ${file.name} importado exitosamente`, 'success');
+                    
+                } catch (error) {
+                    console.error('Error importando archivo:', error);
+                    showNotification('Error importando archivo: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function processManagementData(data, filename) {
+            console.log('Procesando datos de gestión:', data);
+            
+            importedData = data;
+            
+            // Extraer datos del programa 7 (Gestión de Cuenta)
+            if (data.recommendations) {
+                // Datos de recomendaciones
+                accountData = {
+                    capital: data.recommendations.capital || 10000,
+                    riskPerTrade: data.recommendations.riskPerTrade || 0.02,
+                    positionSize: data.recommendations.positionSize || 0,
+                    strategy: data.recommendations.strategy || 'moderate'
+                };
+                
+                // Actualizar UI con datos importados
+                document.getElementById('manualCapital').value = accountData.capital;
+                document.getElementById('manualRiskSlider').value = accountData.riskPerTrade * 100;
+                document.getElementById('manualRiskSlider').dispatchEvent(new Event('input'));
+                
+                // Aplicar estrategia correspondiente
+                if (data.recommendations.strategy) {
+                    currentScenario = data.recommendations.strategy;
+                    document.querySelectorAll('.scenario-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.scenario === currentScenario) {
+                            btn.classList.add('active');
+                        }
+                    });
+                    applyScenario(currentScenario);
+                }
+                
+            } else if (data.accountData) {
+                // Datos directos de accountData
+                accountData = {
+                    capital: data.accountData.capital || 10000,
+                    riskPerTrade: data.accountData.riskPerTrade || 0.02,
+                    winRate: data.accountData.winRate || 0.55,
+                    riskReward: data.accountData.riskReward || 2
+                };
+                
+                document.getElementById('manualCapital').value = accountData.capital;
+                document.getElementById('manualRiskSlider').value = accountData.riskPerTrade * 100;
+                document.getElementById('manualRiskSlider').dispatchEvent(new Event('input'));
+            }
+            
+            updateImportDisplay();
+            calculateRisk(); // Calcular automáticamente
+        }
+
+        function processTemplateData(data, filename) {
+            console.log('Procesando plantilla:', data);
+            
+            importedData = data;
+            
+            // Cargar configuración de plantilla
+            if (data.calculatorSettings) {
+                const settings = data.calculatorSettings;
+                
+                // Configurar instrumento
+                if (settings.instrument) {
+                    currentInstrument = settings.instrument;
+                    document.querySelectorAll('.instrument-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.pair === currentInstrument) {
+                            btn.classList.add('active');
+                        }
+                    });
+                }
+                
+                // Configurar moneda
+                if (settings.currency) {
+                    currentCurrency = settings.currency;
+                    document.querySelectorAll('.currency-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                        if (opt.dataset.currency === currentCurrency) {
+                            opt.classList.add('selected');
+                        }
+                    });
+                }
+                
+                // Configurar tamaño de lote
+                if (settings.lotSize) {
+                    selectedLotSize = settings.lotSize;
+                    document.querySelectorAll('.lot-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                        if (parseFloat(opt.dataset.lot) === selectedLotSize) {
+                            opt.classList.add('selected');
+                        }
+                    });
+                }
+                
+                // Configurar spread
+                if (settings.spread) {
+                    document.getElementById('spreadSlider').value = settings.spread;
+                    document.getElementById('spreadSlider').dispatchEvent(new Event('input'));
+                }
+                
+                // Configurar comisión
+                if (settings.commissionPerLot) {
+                    document.getElementById('commissionPerLot').value = settings.commissionPerLot;
+                }
+                
+                if (settings.commissionPerSide !== undefined) {
+                    document.getElementById('commissionPerSide').checked = settings.commissionPerSide;
+                }
+                
+                // Configurar capital y riesgo si están en la plantilla
+                if (settings.capital) {
+                    document.getElementById('manualCapital').value = settings.capital;
+                }
+                
+                if (settings.riskPercent) {
+                    document.getElementById('manualRiskSlider').value = settings.riskPercent;
+                    document.getElementById('manualRiskSlider').dispatchEvent(new Event('input'));
+                }
+                
+                if (settings.stopLoss) {
+                    document.getElementById('manualStopLoss').value = settings.stopLoss;
+                }
+            }
+            
+            updateImportDisplay();
+            enableCalculationButton();
+        }
+
+        function applyManualConfiguration() {
+            const capital = parseFloat(document.getElementById('manualCapital').value);
+            const riskPercent = parseFloat(document.getElementById('manualRiskSlider').value);
+            const stopLoss = parseInt(document.getElementById('manualStopLoss').value);
+            
+            if (capital < 100 || capital > 10000000) {
+                showNotification(`Capital debe estar entre $100 y $10,000,000`, 'error');
+                return;
+            }
+            
+            if (riskPercent < 0.1 || riskPercent > 10) {
+                showNotification(`Riesgo debe estar entre 0.1% y 10%`, 'error');
+                return;
+            }
+            
+            if (stopLoss < 1 || stopLoss > 1000) {
+                showNotification(`Stop Loss debe estar entre 1 y 1000 puntos`, 'error');
+                return;
+            }
+            
+            importedData = {
+                source: 'Configuración Manual',
+                manual: true,
+                timestamp: new Date().toISOString(),
+                settings: {
+                    capital,
+                    riskPercent,
+                    stopLoss
+                }
+            };
+            
+            accountData = {
+                capital,
+                riskPerTrade: riskPercent / 100,
+                stopLoss
+            };
+            
+            updateImportDisplay();
+            calculateRisk();
+            
+            showNotification('Configuración manual aplicada exitosamente', 'success');
+        }
+
+        function applyQuickConfiguration() {
+            const capital = parseFloat(document.getElementById('quickCapital').value);
+            let riskPercent, stopLoss;
+            
+            switch(currentScenario) {
+                case 'conservative':
+                    riskPercent = 1;
+                    stopLoss = 30;
+                    break;
+                case 'moderate':
+                    riskPercent = 2;
+                    stopLoss = 50;
+                    break;
+                case 'aggressive':
+                    riskPercent = 3;
+                    stopLoss = 80;
+                    break;
+                default:
+                    riskPercent = 2;
+                    stopLoss = 50;
+            }
+            
+            importedData = {
+                source: 'Cálculo Rápido',
+                quick: true,
+                scenario: currentScenario,
+                timestamp: new Date().toISOString(),
+                settings: {
+                    capital,
+                    riskPercent,
+                    stopLoss
+                }
+            };
+            
+            accountData = {
+                capital,
+                riskPerTrade: riskPercent / 100,
+                stopLoss
+            };
+            
+            // Actualizar controles manuales para consistencia
+            document.getElementById('manualCapital').value = capital;
+            document.getElementById('manualRiskSlider').value = riskPercent;
+            document.getElementById('manualRiskSlider').dispatchEvent(new Event('input'));
+            document.getElementById('manualStopLoss').value = stopLoss;
+            
+            updateImportDisplay();
+            calculateRisk();
+            
+            showNotification(`Configuración ${currentScenario} aplicada exitosamente`, 'success');
+        }
+
+        function applyScenario(scenario) {
+            let riskPercent, stopLoss;
+            
+            switch(scenario) {
+                case 'conservative':
+                    riskPercent = 1;
+                    stopLoss = 30;
+                    break;
+                case 'moderate':
+                    riskPercent = 2;
+                    stopLoss = 50;
+                    break;
+                case 'aggressive':
+                    riskPercent = 3;
+                    stopLoss = 80;
+                    break;
+                default:
+                    riskPercent = 2;
+                    stopLoss = 50;
+            }
+            
+            document.getElementById('manualRiskSlider').value = riskPercent;
+            document.getElementById('manualRiskSlider').dispatchEvent(new Event('input'));
+            document.getElementById('manualStopLoss').value = stopLoss;
+        }
+
+        function updateImportStats(file, fileType) {
+            document.getElementById('dataSource').textContent = file.name;
+            document.getElementById('importedCapital').textContent = 
+                accountData.capital ? '$' + accountData.capital.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }) : '$0.00';
+            document.getElementById('importedRisk').textContent = 
+                accountData.riskPerTrade ? (accountData.riskPerTrade * 100).toFixed(1) + '%' : '0%';
+            document.getElementById('importStatus').textContent = 'Cargado ✓';
+            document.getElementById('importStatus').style.color = 'var(--neon-green)';
+            
+            document.getElementById('systemStatus').textContent = 'Datos cargados';
+            document.getElementById('systemStatus').style.color = 'var(--neon-green)';
+            document.getElementById('connectionStatus').textContent = 'Conectado';
+        }
+
+        function updateImportDisplay() {
+            if (accountData.capital) {
+                document.getElementById('summaryCapital').textContent = 
+                    '$' + accountData.capital.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+            }
+        }
+
+        // ===== CÁLCULOS DE RIESGO =====
+        function calculateRisk() {
+            if (isCalculating) return;
+            
+            try {
+                isCalculating = true;
+                const startTime = performance.now();
+                
+                document.getElementById('calculateRiskBtn').disabled = true;
+                document.getElementById('calculateRiskBtn').innerHTML = '<span class="pulse">🧮</span> Calculando...';
+                
+                showNotification('Calculando riesgo y tamaño de posición...', 'info');
+                
+                setTimeout(() => {
+                    try {
+                        // Obtener valores actuales
+                        const capital = accountData.capital || parseFloat(document.getElementById('manualCapital').value);
+                        const riskPercent = accountData.riskPerTrade || parseFloat(document.getElementById('manualRiskSlider').value) / 100;
+                        const stopLoss = accountData.stopLoss || parseInt(document.getElementById('manualStopLoss').value);
+                        
+                        if (!capital || !riskPercent || !stopLoss) {
+                            throw new Error('Faltan parámetros requeridos');
+                        }
+                        
+                        // 8.2.1 Calcular riesgo monetario
+                        const monetaryRisk = capital * riskPercent;
+                        
+                        // 8.3.1 Obtener valor del pip para el instrumento actual
+                        const pipInfo = PIP_VALUES[currentInstrument] || PIP_VALUES['EURUSD'];
+                        const pipValuePerLot = pipInfo.value;
+                        
+                        // 8.2.2 Calcular tamaño recomendado
+                        // Fórmula: Tamaño = Riesgo monetario / (Stop Loss * Valor del pip por lote)
+                        const positionSize = monetaryRisk / (stopLoss * pipValuePerLot);
+                        
+                        // 8.3.2 Calcular costo del spread
+                        const spread = parseFloat(document.getElementById('spreadSlider').value);
+                        const spreadCost = (spread * pipValuePerLot * positionSize) / 10; // Ajuste para diferentes dígitos
+                        
+                        // 8.3.3 Calcular comisiones
+                        const commissionPerLot = parseFloat(document.getElementById('commissionPerLot').value);
+                        const commissionPerSide = document.getElementById('commissionPerSide').checked;
+                        let totalCommission = commissionPerLot * positionSize;
+                        if (commissionPerSide) {
+                            totalCommission *= 2; // Entrada y salida
+                        }
+                        
+                        // Calcular margen requerido (aproximado)
+                        // Asumir apalancamiento 1:100 para Forex, 1:2 para crypto
+                        let marginMultiplier = 0.01; // 1% para 1:100
+                        if (currentInstrument === 'BTCUSD' || currentInstrument === 'XAUUSD') {
+                            marginMultiplier = 0.5; // 50% para commodities/crypto
+                        }
+                        
+                        const marginRequired = capital * positionSize * marginMultiplier * 0.01; // Aproximación
+                        
+                        // Calcular nivel de riesgo
+                        const riskLevel = (riskPercent * 100) / 10; // Normalizar a 0-10
+                        let riskColorClass = 'safe';
+                        if (riskLevel > 3) riskColorClass = 'warning';
+                        if (riskLevel > 6) riskColorClass = 'danger';
+                        
+                        // Guardar resultados
+                        calculationResults = {
+                            timestamp: new Date().toISOString(),
+                            parameters: {
+                                capital,
+                                riskPercent: riskPercent * 100,
+                                stopLoss,
+                                instrument: currentInstrument,
+                                currency: currentCurrency,
+                                lotSize: selectedLotSize
+                            },
+                            calculations: {
+                                monetaryRisk,
+                                positionSize,
+                                pipValuePerLot,
+                                spreadCost,
+                                totalCommission,
+                                marginRequired,
+                                riskLevel,
+                                riskColorClass,
+                                totalCost: spreadCost + totalCommission,
+                                netRisk: monetaryRisk + spreadCost + totalCommission,
+                                riskToRewardRatio: stopLoss > 0 ? (monetaryRisk / stopLoss) : 0
+                            },
+                            recommendations: {
+                                adjustedPositionSize: Math.round(positionSize * 100) / 100,
+                                maximumPositionSize: Math.min(positionSize * 1.5, capital / (pipValuePerLot * 10)),
+                                suggestedStopLoss: adjustStopLossBasedOnVolatility(stopLoss)
+                            }
+                        };
+                        
+                        // Actualizar UI con resultados
+                        updateResultsUI();
+                        
+                        // Generar gráficas
+                        generateAllCharts();
+                        
+                        // Habilitar exportación
+                        document.getElementById('exportBtn').disabled = false;
+                        document.getElementById('copyResultsBtn').disabled = false;
+                        document.getElementById('optimizeBtn').disabled = false;
+                        
+                        const endTime = performance.now();
+                        calculationResults.executionTime = endTime - startTime;
+                        
+                        showNotification(`Cálculos completados en ${calculationResults.executionTime.toFixed(0)}ms`, 'success');
+                        
+                    } catch (error) {
+                        console.error('Error en cálculos:', error);
+                        showNotification('Error en cálculos: ' + error.message, 'error');
+                    } finally {
+                        isCalculating = false;
+                        document.getElementById('calculateRiskBtn').disabled = false;
+                        document.getElementById('calculateRiskBtn').innerHTML = '<span>🧮</span> Calcular Riesgo';
+                    }
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error iniciando cálculos:', error);
+                showNotification('Error: ' + error.message, 'error');
+                isCalculating = false;
+            }
+        }
+
+        function recalculateWithCurrentInstrument() {
+            if (!calculationResults) return;
+            
+            // Actualizar parámetros con nuevo instrumento
+            calculationResults.parameters.instrument = currentInstrument;
+            calculateRisk();
+        }
+
+        function recalculateWithCurrentSettings() {
+            if (!calculationResults) return;
+            
+            // Recalcular con configuración actual
+            calculateRisk();
+        }
+
+        function adjustStopLossBasedVolatility(stopLoss) {
+            // Ajustar stop loss basado en volatilidad del instrumento
+            const volatilityFactors = {
+                'EURUSD': 1.0,
+                'GBPUSD': 1.2,
+                'USDJPY': 1.1,
+                'AUDUSD': 1.3,
+                'USDCHF': 1.0,
+                'USDCAD': 1.1,
+                'XAUUSD': 2.0,
+                'BTCUSD': 3.0
+            };
+            
+            const factor = volatilityFactors[currentInstrument] || 1.0;
+            return Math.round(stopLoss * factor);
+        }
+
+        function updatePipValueDisplay() {
+            const pipInfo = PIP_VALUES[currentInstrument] || PIP_VALUES['EURUSD'];
+            document.getElementById('pipValueDisplay').textContent = '$' + pipInfo.value.toFixed(2);
+            document.getElementById('selectedPair').textContent = currentInstrument;
+        }
+
+        // ===== ACTUALIZACIÓN DE UI =====
+        function updateResultsUI() {
+            if (!calculationResults) return;
+            
+            const calc = calculationResults.calculations;
+            const params = calculationResults.parameters;
+            
+            // 8.2.1 Riesgo monetario
+            document.getElementById('monetaryRiskValue').textContent = 
+                '$' + calc.monetaryRisk.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            
+            // 8.2.2 Tamaño recomendado
+            document.getElementById('recommendedSizeValue').textContent = 
+                calc.positionSize.toFixed(2);
+            
+            // Actualizar medidor de riesgo
+            const riskIndicator = document.getElementById('riskLevelIndicator');
+            riskIndicator.style.width = (calc.riskLevel * 10) + '%';
+            riskIndicator.className = 'risk-level ' + calc.riskColorClass;
+            
+            // Actualizar resumen de trade
+            document.getElementById('summaryCapital').textContent = 
+                '$' + params.capital.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            document.getElementById('summaryRiskPercent').textContent = 
+                params.riskPercent.toFixed(1) + '%';
+            document.getElementById('summaryStopLoss').textContent = 
+                params.stopLoss + ' pts';
+            document.getElementById('summaryPipValue').textContent = 
+                '$' + calc.pipValuePerLot.toFixed(2);
+            document.getElementById('summaryMargin').textContent = 
+                '$' + calc.marginRequired.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            
+            // Actualizar costo del spread
+            document.getElementById('spreadCost').textContent = 
+                '$' + calc.spreadCost.toFixed(2);
+            
+            // Actualizar comisión total
+            document.getElementById('totalCommission').textContent = 
+                '$' + calc.totalCommission.toFixed(2);
+            
+            // Actualizar export display
+            document.getElementById('exportInstrument').textContent = params.instrument;
+            document.getElementById('exportPositionSize').textContent = calc.positionSize.toFixed(2);
+            document.getElementById('exportMonetaryRisk').textContent = 
+                '$' + calc.monetaryRisk.toFixed(2);
+            document.getElementById('exportLastCalc').textContent = 
+                new Date().toLocaleTimeString();
+        }
+
+        // ===== VISUALIZACIÓN =====
+        function generateAllCharts() {
+            if (!calculationResults) return;
+            
+            try {
+                // Destruir gráficas existentes
+                Object.values(currentCharts).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+                currentCharts = {};
+                
+                // Generar todas las gráficas
+                generateRiskChart();
+                generatePositionChart();
+                generateCapitalChart();
+                generateCompareChart();
+                generateAdvancedChart();
+                
+                showNotification('Gráficas generadas', 'success');
+                
+            } catch (error) {
+                console.error('Error generando gráficas:', error);
+                showNotification('Error generando gráficas', 'error');
+            }
+        }
+
+        function showChart(chartType) {
+            // Ocultar todas las gráficas
+            document.querySelectorAll('.chart-wrapper').forEach(wrapper => {
+                wrapper.style.display = 'none';
+            });
+            
+            // Mostrar la gráfica seleccionada
+            const wrapper = document.getElementById(chartType + 'ChartWrapper');
+            if (wrapper) {
+                wrapper.style.display = 'block';
+                
+                // Redimensionar y actualizar la gráfica si existe
+                setTimeout(() => {
+                    const chart = currentCharts[chartType];
+                    if (chart) {
+                        resizeChartCanvas(chartType + 'Chart');
+                        chart.resize();
+                        chart.update();
+                    }
+                }, 50);
+            }
+        }
+
+        function resizeChartCanvas(chartId) {
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return null;
+            
+            const wrapper = canvas.closest('.chart-wrapper');
+            if (!wrapper) return null;
+            
+            const availableWidth = wrapper.clientWidth - 30;
+            const availableHeight = wrapper.clientHeight - 60;
+            
+            canvas.width = Math.max(availableWidth, 300);
+            canvas.height = Math.max(availableHeight, 200);
+            
+            return { width: canvas.width, height: canvas.height };
+        }
+
+        function generateRiskChart() {
+            const canvas = document.getElementById('riskChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('riskPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('riskChart');
+            
+            // Datos para diferentes stop loss
+            const stopLosses = [10, 20, 30, 50, 75, 100, 150, 200];
+            const positionSizes = stopLosses.map(sl => {
+                const risk = calculationResults.parameters.capital * (calculationResults.parameters.riskPercent / 100);
+                const pipValue = calculationResults.calculations.pipValuePerLot;
+                return risk / (sl * pipValue);
+            });
+            const riskAmounts = stopLosses.map((sl, i) => {
+                return positionSizes[i] * sl * calculationResults.calculations.pipValuePerLot;
+            });
+            
+            currentCharts.risk = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: stopLosses.map(sl => sl + ' pts'),
+                    datasets: [
+                        {
+                            label: 'Tamaño de Posición (lots)',
+                            data: positionSizes,
+                            borderColor: 'rgba(0, 240, 255, 1)',
+                            backgroundColor: 'rgba(0, 240, 255, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Riesgo Monetario ($)',
+                            data: riskAmounts,
+                            borderColor: 'rgba(255, 85, 85, 1)',
+                            backgroundColor: 'rgba(255, 85, 85, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Riesgo vs Tamaño de Posición por Stop Loss',
+                            color: '#ff5555',
+                            font: { size: 14 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.datasetIndex === 0) {
+                                        label += context.parsed.y.toFixed(2) + ' lots';
+                                    } else {
+                                        label += '$' + context.parsed.y.toFixed(2);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Tamaño (lots)',
+                                color: '#00f0ff'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { color: '#dfefff' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Riesgo ($)',
+                                color: '#ff5555'
+                            },
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#ff5555',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Stop Loss (puntos)',
+                                color: '#ff5555'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generatePositionChart() {
+            const canvas = document.getElementById('positionChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('positionPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('positionChart');
+            
+            // Comparar tamaños para diferentes instrumentos
+            const instruments = Object.keys(PIP_VALUES);
+            const currentRisk = calculationResults.parameters.capital * (calculationResults.parameters.riskPercent / 100);
+            const positionSizes = instruments.map(instrument => {
+                const pipValue = PIP_VALUES[instrument].value;
+                return currentRisk / (calculationResults.parameters.stopLoss * pipValue);
+            });
+            
+            currentCharts.position = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: instruments,
+                    datasets: [{
+                        label: 'Tamaño de Posición (lots)',
+                        data: positionSizes,
+                        backgroundColor: instruments.map((inst, i) => {
+                            const colors = [
+                                'rgba(0, 240, 255, 0.6)',
+                                'rgba(0, 255, 136, 0.6)',
+                                'rgba(255, 85, 85, 0.6)',
+                                'rgba(255, 255, 0, 0.6)',
+                                'rgba(168, 85, 247, 0.6)',
+                                'rgba(255, 140, 0, 0.6)',
+                                'rgba(255, 20, 147, 0.6)',
+                                'rgba(30, 144, 255, 0.6)'
+                            ];
+                            return colors[i % colors.length];
+                        }),
+                        borderColor: instruments.map((inst, i) => {
+                            const colors = [
+                                'rgba(0, 240, 255, 1)',
+                                'rgba(0, 255, 136, 1)',
+                                'rgba(255, 85, 85, 1)',
+                                'rgba(255, 255, 0, 1)',
+                                'rgba(168, 85, 247, 1)',
+                                'rgba(255, 140, 0, 1)',
+                                'rgba(255, 20, 147, 1)',
+                                'rgba(30, 144, 255, 1)'
+                            ];
+                            return colors[i % colors.length];
+                        }),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Tamaños de Posición por Instrumento',
+                            color: '#00ff88',
+                            font: { size: 14 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(2) + ' lots';
+                                },
+                                afterLabel: function(context) {
+                                    const instrument = context.label;
+                                    const pipValue = PIP_VALUES[instrument]?.value || 10;
+                                    return 'Valor pip: $' + pipValue.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Tamaño (lots)',
+                                color: '#00ff88'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return value.toFixed(1);
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateCapitalChart() {
+            const canvas = document.getElementById('capitalChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('capitalPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('capitalChart');
+            
+            // Simular impacto en capital
+            const trades = 20;
+            const capitalData = [calculationResults.parameters.capital];
+            let currentCapital = calculationResults.parameters.capital;
+            const winRate = 0.55; // Asumir 55% win rate
+            const riskReward = 2; // Asumir 1:2 risk:reward
+            
+            for (let i = 1; i <= trades; i++) {
+                const isWin = Math.random() < winRate;
+                const riskAmount = currentCapital * (calculationResults.parameters.riskPercent / 100);
+                
+                if (isWin) {
+                    currentCapital += riskAmount * riskReward;
+                } else {
+                    currentCapital -= riskAmount;
+                }
+                
+                capitalData.push(currentCapital);
+            }
+            
+            currentCharts.capital = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: trades + 1}, (_, i) => i),
+                    datasets: [{
+                        label: 'Capital Proyectado',
+                        data: capitalData,
+                        borderColor: 'rgba(0, 255, 136, 1)',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Proyección de Capital después de 20 Trades',
+                            color: '#00ff88',
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Capital ($)',
+                                color: '#00ff88'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Número de Trades',
+                                color: '#00ff88'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateCompareChart() {
+            const canvas = document.getElementById('compareChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('comparePlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('compareChart');
+            
+            // Comparar diferentes escenarios de riesgo
+            const scenarios = ['0.5%', '1%', '2%', '3%', '5%'];
+            const finalCapitals = scenarios.map(risk => {
+                let capital = calculationResults.parameters.capital;
+                const riskPercent = parseFloat(risk) / 100;
+                const winRate = 0.55;
+                const riskReward = 2;
+                
+                for (let i = 0; i < 100; i++) {
+                    const isWin = Math.random() < winRate;
+                    const riskAmount = capital * riskPercent;
+                    
+                    if (isWin) {
+                        capital += riskAmount * riskReward;
+                    } else {
+                        capital -= riskAmount;
+                    }
+                }
+                
+                return capital;
+            });
+            
+            currentCharts.compare = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: scenarios,
+                    datasets: [{
+                        label: 'Capital Final después de 100 trades',
+                        data: finalCapitals,
+                        backgroundColor: scenarios.map((scenario, i) => {
+                            const risk = parseFloat(scenario);
+                            if (risk <= 1) return 'rgba(0, 255, 136, 0.6)';
+                            if (risk <= 3) return 'rgba(255, 255, 0, 0.6)';
+                            return 'rgba(255, 85, 85, 0.6)';
+                        }),
+                        borderColor: scenarios.map((scenario, i) => {
+                            const risk = parseFloat(scenario);
+                            if (risk <= 1) return 'rgba(0, 255, 136, 1)';
+                            if (risk <= 3) return 'rgba(255, 255, 0, 1)';
+                            return 'rgba(255, 85, 85, 1)';
+                        }),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Comparación de Diferentes Niveles de Riesgo',
+                            color: '#ffff00',
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Capital Final ($)',
+                                color: '#ffff00'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Riesgo por Trade',
+                                color: '#ffff00'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateAdvancedChart() {
+            const canvas = document.getElementById('advancedChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('advancedPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('advancedChart');
+            
+            // Análisis avanzado: Riesgo vs Recompensa
+            const riskLevels = [0.5, 1, 2, 3, 5, 7, 10];
+            const expectedValues = riskLevels.map(risk => {
+                const winRate = 0.55;
+                const riskReward = 2;
+                return (winRate * riskReward * risk - (1 - winRate) * risk);
+            });
+            const ruinProbabilities = riskLevels.map(risk => {
+                const edge = (0.55 * 2) - (0.45 * 1);
+                if (edge <= 0) return 100;
+                const riskOfRuin = Math.exp(-2 * edge * (1 / (risk/100)));
+                return Math.min(100, riskOfRuin * 100);
+            });
+            
+            currentCharts.advanced = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: riskLevels.map(r => r + '%'),
+                    datasets: [
+                        {
+                            label: 'Valor Esperado por Trade (%)',
+                            data: expectedValues,
+                            borderColor: 'rgba(0, 240, 255, 1)',
+                            backgroundColor: 'rgba(0, 240, 255, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Probabilidad de Ruina (%)',
+                            data: ruinProbabilities,
+                            borderColor: 'rgba(255, 85, 85, 1)',
+                            backgroundColor: 'rgba(255, 85, 85, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Análisis Avanzado: Riesgo vs Valor Esperado',
+                            color: '#a855f7',
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Valor Esperado (%)',
+                                color: '#00f0ff'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return value.toFixed(1) + '%';
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Prob. Ruina (%)',
+                                color: '#ff5555'
+                            },
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#ff5555',
+                                callback: function(value) {
+                                    return value.toFixed(1) + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Riesgo por Trade (%)',
+                                color: '#a855f7'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== EXPORTACIÓN =====
+        function exportData() {
+            if (!calculationResults) {
+                showNotification('No hay cálculos para exportar', 'warning');
+                return;
+            }
+            
+            try {
+                let content, filename;
+                
+                const exportData = {
+                    program: 'Calculadora de Riesgo v1.0',
+                    timestamp: new Date().toISOString(),
+                    sourceData: importedData?.source || 'Manual',
+                    parameters: calculationResults.parameters,
+                    calculations: calculationResults.calculations,
+                    recommendations: calculationResults.recommendations,
+                    calculatorSettings: {
+                        instrument: currentInstrument,
+                        currency: currentCurrency,
+                        lotSize: selectedLotSize,
+                        spread: parseFloat(document.getElementById('spreadSlider').value),
+                        commissionPerLot: parseFloat(document.getElementById('commissionPerLot').value),
+                        commissionPerSide: document.getElementById('commissionPerSide').checked,
+                        capital: calculationResults.parameters.capital,
+                        riskPercent: calculationResults.parameters.riskPercent,
+                        stopLoss: calculationResults.parameters.stopLoss
+                    },
+                    metadata: {
+                        exportFormat: selectedFormat,
+                        nextProgram: 'Ejecución de Trades',
+                        version: '1.0'
+                    }
+                };
+                
+                switch(selectedFormat) {
+                    case 'execution':
+                        filename = `execution_parameters_${new Date().toISOString().slice(0, 10)}.json`;
+                        content = JSON.stringify({
+                            execution: exportData,
+                            tradeParameters: {
+                                instrument: currentInstrument,
+                                positionSize: calculationResults.calculations.positionSize,
+                                stopLossPoints: calculationResults.parameters.stopLoss,
+                                monetaryRisk: calculationResults.calculations.monetaryRisk,
+                                takeProfitPoints: Math.round(calculationResults.parameters.stopLoss * 2), // 1:2 RR
+                                orderType: 'MARKET',
+                                expiry: 'GTC'
+                            }
+                        }, null, 2);
+                        break;
+                        
+                    case 'monitoring':
+                        filename = `monitoring_config_${new Date().toISOString().slice(0, 10)}.json`;
+                        content = JSON.stringify({
+                            monitoring: exportData,
+                            alerts: {
+                                onPositionSize: calculationResults.calculations.positionSize,
+                                onRisk: calculationResults.calculations.monetaryRisk,
+                                onMargin: calculationResults.calculations.marginRequired,
+                                thresholds: {
+                                    maxRiskPerTrade: calculationResults.parameters.riskPercent,
+                                    maxDailyLoss: calculationResults.parameters.capital * 0.05,
+                                    maxDrawdown: calculationResults.parameters.capital * 0.2
+                                }
+                            }
+                        }, null, 2);
+                        break;
+                        
+                    case 'template':
+                        filename = `calculator_template_${new Date().toISOString().slice(0, 10)}.json`;
+                        content = JSON.stringify({
+                            template: exportData.calculatorSettings,
+                            savedAt: new Date().toISOString(),
+                            description: 'Plantilla guardada de Calculadora de Riesgo'
+                        }, null, 2);
+                        break;
+                        
+                    case 'next':
+                        filename = `next_program_input_${new Date().toISOString().slice(0, 10)}.json`;
+                        content = JSON.stringify({
+                            riskCalculatorOutput: exportData,
+                            executionReady: true,
+                            validation: {
+                                positionSizeValid: calculationResults.calculations.positionSize > 0,
+                                riskWithinLimits: calculationResults.parameters.riskPercent <= 5,
+                                marginAvailable: calculationResults.calculations.marginRequired < calculationResults.parameters.capital * 0.5,
+                                instrumentSupported: true
+                            },
+                            nextSteps: [
+                                "Usar tamaño de posición calculado",
+                                "Configurar stop loss en " + calculationResults.parameters.stopLoss + " puntos",
+                                "Monitorear riesgo: $" + calculationResults.calculations.monetaryRisk.toFixed(2),
+                                "Considerar comisiones y spread en análisis"
+                            ]
+                        }, null, 2);
+                        break;
+                        
+                    default:
+                        throw new Error('Formato no soportado');
+                }
+                
+                const blob = new Blob([content], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                showNotification(`Datos exportados como ${selectedFormat}`, 'success');
+                
+            } catch (error) {
+                console.error('Error exportando:', error);
+                showNotification('Error exportando datos', 'error');
+            }
+        }
+
+        function copyResultsToClipboard() {
+            if (!calculationResults) {
+                showNotification('No hay resultados para copiar', 'warning');
+                return;
+            }
+            
+            const summary = `
+📊 RESUMEN DE CÁLCULO DE RIESGO
+─────────────────────────────
+💰 Capital: $${calculationResults.parameters.capital.toLocaleString()}
+⚠️ Riesgo por Trade: ${calculationResults.parameters.riskPercent.toFixed(1)}%
+🎯 Stop Loss: ${calculationResults.parameters.stopLoss} puntos
+📈 Instrumento: ${calculationResults.parameters.instrument}
+📦 Tamaño Posición: ${calculationResults.calculations.positionSize.toFixed(2)} lots
+💸 Riesgo Monetario: $${calculationResults.calculations.monetaryRisk.toFixed(2)}
+🔧 Valor por Pip: $${calculationResults.calculations.pipValuePerLot.toFixed(2)}
+📊 Margen Requerido: $${calculationResults.calculations.marginRequired.toFixed(2)}
+─────────────────────────────
+⏰ Calculado: ${new Date().toLocaleString()}
+            `.trim();
+            
+            navigator.clipboard.writeText(summary).then(() => {
+                showNotification('Resultados copiados al portapapeles', 'success');
+            }).catch(err => {
+                console.error('Error copiando al portapapeles:', err);
+                showNotification('Error copiando resultados', 'error');
+            });
+        }
+
+        function saveTemplate() {
+            if (!calculationResults) {
+                showNotification('No hay configuración para guardar', 'warning');
+                return;
+            }
+            
+            const template = {
+                templateName: `Plantilla_${currentInstrument}_${currentScenario}`,
+                savedAt: new Date().toISOString(),
+                calculatorSettings: {
+                    instrument: currentInstrument,
+                    currency: currentCurrency,
+                    lotSize: selectedLotSize,
+                    spread: parseFloat(document.getElementById('spreadSlider').value),
+                    commissionPerLot: parseFloat(document.getElementById('commissionPerLot').value),
+                    commissionPerSide: document.getElementById('commissionPerSide').checked,
+                    capital: calculationResults.parameters.capital,
+                    riskPercent: calculationResults.parameters.riskPercent,
+                    stopLoss: calculationResults.parameters.stopLoss,
+                    scenario: currentScenario
+                },
+                lastResults: calculationResults
+            };
+            
+            const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `risk_calculator_template_${new Date().toISOString().slice(0, 10)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            showNotification('Plantilla guardada exitosamente', 'success');
+        }
+
+        // ===== FUNCIONES ADICIONALES =====
+        function optimizeAutomatically() {
+            if (!calculationResults) {
+                showNotification('Primero calcula el riesgo', 'warning');
+                return;
+            }
+            
+            showNotification('Optimizando configuración...', 'info');
+            
+            // Simular optimización
+            setTimeout(() => {
+                // Encontrar mejor stop loss basado en volatilidad del instrumento
+                const optimalStopLoss = adjustStopLossBasedOnVolatility(calculationResults.parameters.stopLoss);
+                
+                // Ajustar riesgo si es muy alto
+                let optimalRisk = calculationResults.parameters.riskPercent;
+                if (optimalRisk > 3) {
+                    optimalRisk = 3;
+                    showNotification('Riesgo ajustado a 3% (máximo recomendado)', 'warning');
+                }
+                
+                // Aplicar optimización
+                document.getElementById('manualStopLoss').value = optimalStopLoss;
+                document.getElementById('manualRiskSlider').value = optimalRisk;
+                document.getElementById('manualRiskSlider').dispatchEvent(new Event('input'));
+                
+                // Recalcular
+                calculateRisk();
+                
+                showNotification(`Optimización completada. SL: ${optimalStopLoss}pts, Riesgo: ${optimalRisk}%`, 'success');
+            }, 1500);
+        }
+
+        function adjustStopLossBasedOnVolatility(currentSL) {
+            // Factores basados en volatilidad histórica promedio
+            const volatilityFactors = {
+                'EURUSD': 1.0,
+                'GBPUSD': 1.3,
+                'USDJPY': 1.2,
+                'AUDUSD': 1.4,
+                'USDCHF': 1.1,
+                'USDCAD': 1.2,
+                'XAUUSD': 2.5,
+                'BTCUSD': 4.0
+            };
+            
+            const factor = volatilityFactors[currentInstrument] || 1.0;
+            const optimal = Math.round(currentSL * factor);
+            
+            // Limitar entre 20 y 200 puntos
+            return Math.max(20, Math.min(200, optimal));
+        }
+
+        // ===== UTILITIES =====
+        function showNotification(message, type = 'info') {
+            const oldNotifications = document.querySelectorAll('[data-notification]');
+            if (oldNotifications.length > 3) {
+                oldNotifications[0].remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.setAttribute('data-notification', 'true');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 4px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                border: 1px solid;
+                max-width: 400px;
+                word-wrap: break-word;
+                font-size: 14px;
+            `;
+            
+            const colors = {
+                success: { bg: 'rgba(0, 255, 136, 0.95)', border: 'rgba(0, 255, 136, 0.7)', icon: '✅' },
+                error: { bg: 'rgba(255, 85, 85, 0.95)', border: 'rgba(255, 85, 85, 0.7)', icon: '❌' },
+                warning: { bg: 'rgba(255, 193, 7, 0.95)', border: 'rgba(255, 193, 7, 0.7)', icon: '⚠️', color: '#000' },
+                info: { bg: 'rgba(0, 240, 255, 0.95)', border: 'rgba(0, 240, 255, 0.7)', icon: 'ℹ️' }
+            };
+            
+            const color = colors[type] || colors.info;
+            notification.style.background = color.bg;
+            notification.style.borderColor = color.border;
+            if (color.color) notification.style.color = color.color;
+            
+            notification.textContent = `${color.icon} ${message}`;
+            document.body.appendChild(notification);
+            
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOut {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        function enableCalculationButton() {
+            const capital = accountData.capital || parseFloat(document.getElementById('manualCapital').value);
+            const riskPercent = accountData.riskPerTrade || parseFloat(document.getElementById('manualRiskSlider').value) / 100;
+            const stopLoss = accountData.stopLoss || parseInt(document.getElementById('manualStopLoss').value);
+            
+            if (capital > 0 && riskPercent > 0 && stopLoss > 0) {
+                document.getElementById('calculateRiskBtn').disabled = false;
+            }
+        }
+
+        // ===== LOCAL STORAGE =====
+        function saveToLocalStorage() {
+            try {
+                const data = {
+                    importedData,
+                    calculationResults,
+                    currentInstrument,
+                    currentCurrency,
+                    selectedLotSize,
+                    currentScenario,
+                    settings: {
+                        capital: document.getElementById('manualCapital').value,
+                        riskPercent: document.getElementById('manualRiskSlider').value,
+                        stopLoss: document.getElementById('manualStopLoss').value,
+                        spread: document.getElementById('spreadSlider').value,
+                        commissionPerLot: document.getElementById('commissionPerLot').value,
+                        commissionPerSide: document.getElementById('commissionPerSide').checked
+                    },
+                    savedAt: new Date().toISOString()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (error) {
+                console.warn('Error guardando datos:', error);
+            }
+        }
+
+        function loadSavedData() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    
+                    importedData = data.importedData;
+                    calculationResults = data.calculationResults;
+                    currentInstrument = data.currentInstrument || 'EURUSD';
+                    currentCurrency = data.currentCurrency || 'USD';
+                    selectedLotSize = data.selectedLotSize || 1.0;
+                    currentScenario = data.currentScenario || 'moderate';
+                    
+                    if (data.settings) {
+                        document.getElementById('manualCapital').value = data.settings.capital || 10000;
+                        document.getElementById('manualRiskSlider').value = data.settings.riskPercent || 2;
+                        document.getElementById('manualRiskSlider').dispatchEvent(new Event('input'));
+                        document.getElementById('manualStopLoss').value = data.settings.stopLoss || 50;
+                        document.getElementById('spreadSlider').value = data.settings.spread || 10;
+                        document.getElementById('spreadSlider').dispatchEvent(new Event('input'));
+                        document.getElementById('commissionPerLot').value = data.settings.commissionPerLot || 5;
+                        document.getElementById('commissionPerSide').checked = data.settings.commissionPerSide || false;
+                    }
+                    
+                    // Actualizar selectores UI
+                    document.querySelectorAll('.instrument-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.pair === currentInstrument) {
+                            btn.classList.add('active');
+                        }
+                    });
+                    
+                    document.querySelectorAll('.currency-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                        if (opt.dataset.currency === currentCurrency) {
+                            opt.classList.add('selected');
+                        }
+                    });
+                    
+                    document.querySelectorAll('.lot-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                        if (parseFloat(opt.dataset.lot) === selectedLotSize) {
+                            opt.classList.add('selected');
+                        }
+                    });
+                    
+                    document.querySelectorAll('.scenario-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.scenario === currentScenario) {
+                            btn.classList.add('active');
+                        }
+                    });
+                    
+                    updatePipValueDisplay();
+                    
+                    if (calculationResults) {
+                        updateResultsUI();
+                        setTimeout(() => generateAllCharts(), 500);
+                        document.getElementById('exportBtn').disabled = false;
+                        document.getElementById('copyResultsBtn').disabled = false;
+                        document.getElementById('optimizeBtn').disabled = false;
+                    }
+                    
+                    if (importedData) {
+                        enableCalculationButton();
+                        updateImportDisplay();
+                    }
+                    
+                    showNotification('Datos cargados desde almacenamiento local', 'info');
+                }
+            } catch (error) {
+                console.warn('Error cargando datos:', error);
+            }
+        }
+
+        // ===== MANEJO DE REDIMENSIÓN =====
+        window.addEventListener('resize', function() {
+            if (calculationResults) {
+                setTimeout(() => {
+                    Object.keys(currentCharts).forEach(chartType => {
+                        const chart = currentCharts[chartType];
+                        if (chart) {
+                            resizeChartCanvas(chartType + 'Chart');
+                            chart.resize();
+                            chart.update();
+                        }
+                    });
+                }, 300);
+            }
+        });
+
+        // Auto-guardar cuando se cierra la página
+        window.addEventListener('beforeunload', function() {
+            saveToLocalStorage();
+        });
+    </script>
+</body>
+</html>

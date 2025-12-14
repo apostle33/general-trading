@@ -1,0 +1,3463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADING ANALYTICS | SIMULADOR PARAMÉTRICO</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Simple Statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <style>
+        /* ===== ESTILOS CYBERPUNK ===== */
+        :root {
+            --bg-1: #06060a;
+            --bg-2: #0b0011;
+            --neon-cyan: #00f0ff;
+            --neon-blue: #6f5cff;
+            --neon-magenta: #ff4cff;
+            --neon-green: #00ff88;
+            --neon-red: #ff5555;
+            --neon-yellow: #ffff00;
+            --neon-orange: #ff8c00;
+            --neon-purple: #a855f7;
+            --muted: rgba(230, 238, 248, 0.55);
+            --card-bg: rgba(20, 20, 40, 0.85);
+            --glow-cyan: 0 0 10px rgba(0, 240, 255, 0.5);
+            --glow-green: 0 0 10px rgba(0, 255, 136, 0.5);
+            --glow-red: 0 0 10px rgba(255, 85, 85, 0.5);
+            --glow-yellow: 0 0 10px rgba(255, 255, 0, 0.5);
+            --radius: 8px;
+            --border-thin: 1px solid rgba(0, 240, 255, 0.2);
+            font-family: 'Segoe UI', 'Courier New', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-1);
+            color: #dfefff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.03) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 255, 0.03) 0%, transparent 20%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .app-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            border-bottom: var(--border-thin);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            animation: scanline 3s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: var(--glow-cyan);
+            letter-spacing: 1px;
+        }
+
+        .system-info {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+        }
+
+        .info-badge {
+            background: rgba(0, 240, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: var(--border-thin);
+        }
+
+        /* MAIN LAYOUT */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .section-title {
+            color: var(--neon-cyan);
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: var(--border-thin);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* IMPORT PANEL */
+        .import-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .file-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .file-type-btn {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            height: 70px;
+        }
+
+        .file-type-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            transform: translateY(-2px);
+        }
+
+        .file-type-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .file-type-icon {
+            font-size: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue));
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(90deg, var(--neon-green), rgba(0, 255, 136, 0.7));
+            color: #000;
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, var(--neon-red), rgba(255, 85, 85, 0.7));
+            color: #000;
+        }
+
+        .btn-warning {
+            background: linear-gradient(90deg, var(--neon-yellow), rgba(255, 255, 0, 0.7));
+            color: #000;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* DATA STATS */
+        .data-stats {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.05);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat-value {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* CONFIGURATION PANEL */
+        .config-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-label {
+            color: var(--muted);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .config-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            padding: 10px;
+            color: var(--neon-cyan);
+            font-family: inherit;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* SLIDER WITH VALUE */
+        .slider-with-value {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .slider-value {
+            min-width: 70px;
+            text-align: center;
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: 14px;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            outline: none;
+            margin: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        /* SIMULATION CONTROLS */
+        .sim-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* RESULTS PANEL */
+        .results-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .result-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            text-align: center;
+            transition: all 0.3s;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .result-card:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .result-title {
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .result-subtext {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* CHARTS SECTION */
+        .charts-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .chart-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: var(--border-thin);
+            flex-wrap: wrap;
+        }
+
+        .chart-tab {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .chart-tab:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .chart-tab.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .chart-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .chart-wrapper {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            height: 400px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-title {
+            color: var(--neon-cyan);
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* SCENARIO SELECTOR */
+        .scenario-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .scenario-btn {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .scenario-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .scenario-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* ADVANCED OPTIONS */
+        .advanced-options {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: var(--border-thin);
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .option-label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* SWITCH TOGGLE */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--neon-cyan);
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* EXPORT PANEL */
+        .export-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .export-formats {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .format-btn {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .format-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+        }
+
+        .format-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* UTILITIES */
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--neon-cyan), var(--neon-magenta));
+            border-radius: 3px;
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .scenario-selector {
+                grid-template-columns: 1fr;
+            }
+            
+            .sim-controls {
+                flex-direction: column;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div style="width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(45deg, var(--neon-cyan), var(--neon-magenta));"></div>
+                <div>
+                    <h1>TRADING ANALYTICS | SIMULADOR PARAMÉTRICO</h1>
+                    <div style="font-size: 12px; color: var(--muted);">Simulación de Estrategias con Parámetros Variables</div>
+                </div>
+            </div>
+            <div class="system-info">
+                <div class="info-badge">
+                    <span>🎯 Simulaciones: </span>
+                    <strong id="simulationsCount">0</strong>
+                </div>
+                <div class="info-badge">
+                    <span>📊 Escenario: </span>
+                    <strong id="currentScenario" style="color: var(--neon-yellow);">Normal</strong>
+                </div>
+                <div class="info-badge">
+                    <span>⚡ Status: </span>
+                    <strong id="systemStatus" style="color: var(--neon-yellow);">Esperando datos</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- === SECCIÓN DE IMPORTACIÓN VISIBLE === -->
+                <div class="import-panel">
+                    <div class="section-title">
+                        <span>📤</span> IMPORTAR DATOS HISTÓRICOS
+                    </div>
+                    
+                    <div class="file-types">
+                        <div class="file-type-btn active" data-type="json" id="jsonBtn">
+                            <div class="file-type-icon">📊</div>
+                            <div>JSON</div>
+                            <input type="file" id="jsonInput" class="file-input" accept=".json">
+                        </div>
+                        <div class="file-type-btn" data-type="csv" id="csvBtn">
+                            <div class="file-type-icon">📄</div>
+                            <div>CSV</div>
+                            <input type="file" id="csvInput" class="file-input" accept=".csv,.txt">
+                        </div>
+                        <div class="file-type-btn" data-type="txt" id="txtBtn">
+                            <div class="file-type-icon">📝</div>
+                            <div>TXT</div>
+                            <input type="file" id="txtInput" class="file-input" accept=".txt">
+                        </div>
+                        <div class="file-type-btn" data-type="excel" id="excelBtn">
+                            <div class="file-type-icon">📈</div>
+                            <div>Excel</div>
+                            <input type="file" id="excelInput" class="file-input" accept=".xlsx,.xls">
+                        </div>
+                    </div>
+
+                    <div class="data-stats" id="importStats">
+                        <div class="stat-item">
+                            <span class="stat-label">Archivo:</span>
+                            <span class="stat-value" id="fileName">Ninguno</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Tipo:</span>
+                            <span class="stat-value" id="fileType">N/A</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Registros:</span>
+                            <span class="stat-value" id="recordCount">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Estado:</span>
+                            <span class="stat-value" id="importStatus" style="color: var(--neon-yellow);">Pendiente</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- === FIN SECCIÓN IMPORTACIÓN === -->
+
+                <!-- 6.1 Parámetros -->
+                <div class="config-panel">
+                    <div class="section-title">
+                        <span>⚙️</span> 6.1 PARÁMETROS
+                    </div>
+                    
+                    <div class="config-grid">
+                        <!-- 6.1.1 Capital Inicial -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>💰</span> 6.1.1 Capital Inicial ($)
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="initialCapitalSlider" min="10" max="1000000" value="10000" step="10" class="config-input">
+                                <div class="slider-value" id="initialCapitalValue">$10,000</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 6.1.2 Riesgo por Trade -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>🎯</span> 6.1.2 Riesgo por Trade (%)
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="riskPerTradeSlider" min="0.1" max="50" value="2" step="0.1" class="config-input">
+                                <div class="slider-value" id="riskPerTradeValue">2.0%</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 6.1.3 Número de Trades -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>📊</span> 6.1.3 Número de Trades
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="numTradesSlider" min="1" max="5000" value="100" step="1" class="config-input">
+                                <div class="slider-value" id="numTradesValue">100</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Distribución de Trades -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>📈</span> Win Rate Esperado (%)
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="winRateSlider" min="1" max="99" value="55" step="1" class="config-input">
+                                <div class="slider-value" id="winRateValue">55%</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Ratio Risk/Reward -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>⚖️</span> Ratio Risk/Reward
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="riskRewardSlider" min="0.5" max="10" value="2" step="0.1" class="config-input">
+                                <div class="slider-value" id="riskRewardValue">1:2</div>
+                            </div>
+                        </div>
+
+                        <!-- 6.3.1 Múltiples escenarios -->
+                        <div class="scenario-selector">
+                            <button class="scenario-btn active" data-scenario="pesimista">
+                                <span>🔴</span> Pesimista
+                            </button>
+                            <button class="scenario-btn" data-scenario="normal">
+                                <span>🟡</span> Normal
+                            </button>
+                            <button class="scenario-btn" data-scenario="optimista">
+                                <span>🟢</span> Optimista
+                            </button>
+                        </div>
+
+                        <!-- 6.3 Opciones Avanzadas -->
+                        <div class="advanced-options">
+                            <div class="config-label" style="margin-bottom: 10px;">
+                                <span>⚡</span> 6.3 OPCIONES AVANZADAS
+                            </div>
+                            
+                            <!-- 6.3.2 Simulaciones múltiples -->
+                            <div class="option-row">
+                                <span class="option-label">6.3.2 Simulaciones Múltiples</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="multipleSimsToggle" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="option-row" id="simCountRow">
+                                <span class="option-label">Número de simulaciones</span>
+                                <input type="number" id="numSimulations" class="config-input" value="100" min="10" max="10000" style="width: 100px;">
+                            </div>
+                            
+                            <!-- 6.3.3 Histogramas -->
+                            <div class="option-row">
+                                <span class="option-label">6.3.3 Histogramas de resultados</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="histogramsToggle" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Controles de simulación -->
+                        <div class="sim-controls">
+                            <button class="btn btn-success" id="runSimulationBtn" disabled>
+                                <span>🚀</span> Ejecutar Simulación
+                            </button>
+                            <button class="btn btn-secondary" id="quickTestBtn">
+                                <span>⚡</span> Test Rápido
+                            </button>
+                            <button class="btn btn-danger" id="clearDataBtn">
+                                <span>🗑️</span> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6.2 Resultados -->
+                <div class="results-panel">
+                    <div class="section-title">
+                        <span>📊</span> 6.2 RESULTADOS
+                    </div>
+                    
+                    <div class="results-grid">
+                        <!-- 6.2.2 Capital final -->
+                        <div class="result-card">
+                            <div class="result-title">6.2.2 Capital Final</div>
+                            <div class="result-value" id="finalCapitalValue" style="color: var(--neon-green);">$0.00</div>
+                            <div class="result-subtext">Retorno: <span id="returnPercentage">0%</span></div>
+                        </div>
+                        
+                        <!-- Máximo Drawdown -->
+                        <div class="result-card">
+                            <div class="result-title">Máximo Drawdown</div>
+                            <div class="result-value" id="maxDrawdownValue" style="color: var(--neon-red);">0.0%</div>
+                            <div class="result-subtext" id="maxDrawdownTooltip">Peor retroceso del capital</div>
+                        </div>
+                        
+                        <!-- Sharpe Ratio -->
+                        <div class="result-card">
+                            <div class="result-title">Sharpe Ratio</div>
+                            <div class="result-value" id="sharpeRatioValue" style="color: var(--neon-cyan);">0.00</div>
+                            <div class="result-subtext" id="sharpeRatioTooltip">
+                                <span id="sharpeInterpretation">Riesgo/Retorno</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Probabilidad de Ruina -->
+                        <div class="result-card">
+                            <div class="result-title">Prob. Ruina</div>
+                            <div class="result-value" id="ruinProbabilityValue" style="color: var(--neon-yellow);">0%</div>
+                            <div class="result-subtext" id="ruinTooltip">Menos del 50% capital</div>
+                        </div>
+                    </div>
+
+                    <!-- Estadísticas detalladas -->
+                    <div class="data-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Trades Ganadores:</span>
+                            <span class="stat-value" id="winningTrades">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Trades Perdedores:</span>
+                            <span class="stat-value" id="losingTrades">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Win Rate Real:</span>
+                            <span class="stat-value" id="actualWinRate">0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Profit Factor:</span>
+                            <span class="stat-value" id="profitFactor">0.00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Expectativa Matemática:</span>
+                            <span class="stat-value" id="mathematicalExpectation">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- 6.2.1 Curva simulada y 6.3.3 Histogramas -->
+                <div class="charts-section">
+                    <div class="section-title">
+                        <span>📈</span> VISUALIZACIÓN
+                    </div>
+                    
+                    <!-- Pestañas de gráficas -->
+                    <div class="chart-tabs" id="chartTabs">
+                        <div class="chart-tab active" data-chart="equity">6.2.1 Curva Simulada</div>
+                        <div class="chart-tab" data-chart="histogram">6.3.3 Histograma Final</div>
+                        <div class="chart-tab" data-chart="multiple">6.3.2 Simulaciones Múltiples</div>
+                        <div class="chart-tab" data-chart="scenarios">6.3.1 Escenarios</div>
+                        <div class="chart-tab" data-chart="distribution">Distribución Trades</div>
+                    </div>
+                    
+                    <!-- Contenedores de gráficas -->
+                    <div class="chart-container">
+                        <!-- Curva de Equity -->
+                        <div class="chart-wrapper" id="equityChartWrapper">
+                            <div class="chart-title">
+                                <span>📈</span> 6.2.1 CURVA DE EQUITY SIMULADA
+                            </div>
+                            <div class="chart-placeholder" id="equityPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-cyan); opacity: 0.3;">📊</div>
+                                <div style="color: var(--muted); max-width: 300px;">
+                                    <strong>Configura los parámetros y ejecuta simulación</strong><br>
+                                    <small>Usa controles en el panel izquierdo</small>
+                                </div>
+                            </div>
+                            <canvas id="equityChart" class="hidden"></canvas>
+                        </div>
+                        
+                        <!-- Histograma -->
+                        <div class="chart-wrapper" id="histogramChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>📊</span> 6.3.3 HISTOGRAMA DE RESULTADOS
+                            </div>
+                            <div class="chart-placeholder" id="histogramPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-purple); opacity: 0.3;">📊</div>
+                                <div>Histograma se generará aquí</div>
+                            </div>
+                            <canvas id="histogramChart" class="hidden"></canvas>
+                        </div>
+                        
+                        <!-- Simulaciones Múltiples -->
+                        <div class="chart-wrapper" id="multipleChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>🎲</span> 6.3.2 SIMULACIONES MÚLTIPLES
+                            </div>
+                            <div class="chart-placeholder" id="multiplePlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-blue); opacity: 0.3;">📊</div>
+                                <div>Simulaciones múltiples se generarán aquí</div>
+                            </div>
+                            <canvas id="multipleChart" class="hidden"></canvas>
+                        </div>
+
+                        <!-- Escenarios -->
+                        <div class="chart-wrapper" id="scenariosChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>🎯</span> 6.3.1 COMPARACIÓN DE ESCENARIOS
+                            </div>
+                            <div class="chart-placeholder" id="scenariosPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-orange); opacity: 0.3;">📊</div>
+                                <div>Comparación de escenarios se generará aquí</div>
+                            </div>
+                            <canvas id="scenariosChart" class="hidden"></canvas>
+                        </div>
+
+                        <!-- Distribución Trades -->
+                        <div class="chart-wrapper" id="distributionChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>📊</span> DISTRIBUCIÓN DE TRADES
+                            </div>
+                            <div class="chart-placeholder" id="distributionPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-green); opacity: 0.3;">📊</div>
+                                <div>Distribución de trades se generará aquí</div>
+                            </div>
+                            <canvas id="distributionChart" class="hidden"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exportación -->
+                <div class="export-panel">
+                    <div class="section-title">
+                        <span>📤</span> EXPORTAR RESULTADOS
+                    </div>
+                    
+                    <div class="export-formats">
+                        <button class="format-btn active" data-format="json">
+                            <span>📊</span> JSON
+                        </button>
+                        <button class="format-btn" data-format="csv">
+                            <span>📄</span> CSV
+                        </button>
+                        <button class="format-btn" data-format="summary">
+                            <span>📋</span> Resumen PDF
+                        </button>
+                        <button class="format-btn" data-format="charts">
+                            <span>🖼️</span> Gráficas PNG
+                        </button>
+                        <button class="format-btn" data-format="next">
+                            <span>➡️</span> Para Siguiente Programa
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-primary" id="exportBtn" disabled>
+                            <span>💾</span> Exportar Seleccionado
+                        </button>
+                        <button class="btn btn-secondary" id="exportAllBtn" disabled>
+                            <span>🚀</span> Exportar Todo
+                        </button>
+                        <button class="btn btn-warning" id="optimizeBtn" disabled>
+                            <span>⚡</span> Optimizar Parámetros
+                        </button>
+                    </div>
+
+                    <div class="data-stats" style="margin-top: 15px;">
+                        <div class="stat-item">
+                            <span class="stat-label">Última simulación:</span>
+                            <span class="stat-value" id="lastSimulation">Nunca</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Parámetros activos:</span>
+                            <span class="stat-value" id="activeParams">Default</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Datos generados:</span>
+                            <span class="stat-value" id="generatedData">0 registros</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONFIGURACIÓN =====
+        const STORAGE_KEY = 'parametric_simulator_v1';
+        const MAX_SIMULATIONS = 10000;
+        const MIN_SIMULATIONS = 10;
+        
+        // ===== VARIABLES GLOBALES =====
+        let currentScenario = 'normal';
+        let simulationResults = null;
+        let importedHistoricalData = null;
+        let multipleSimResults = [];
+        let currentCharts = {};
+        let selectedFormat = 'json';
+        let isSimulationRunning = false;
+        let historicalStats = null;
+
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('SIMULADOR PARAMÉTRICO - Sistema iniciado');
+            
+            // Cargar datos guardados
+            loadSavedData();
+            
+            // Configurar event listeners
+            setupEventListeners();
+            
+            // Configurar UI inicial
+            setupInitialUI();
+            
+            // Configurar sliders
+            setupSliders();
+            
+            // Habilitar test rápido
+            document.getElementById('quickTestBtn').addEventListener('click', runQuickTest);
+        });
+
+        // ===== CONFIGURACIÓN DE UI =====
+        function setupInitialUI() {
+            // Configurar file type buttons
+            document.querySelectorAll('.file-type-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        document.querySelectorAll('.file-type-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        const fileType = this.dataset.type;
+                        document.getElementById(`${fileType}Input`).click();
+                    }
+                });
+            });
+            
+            // Configurar format buttons
+            document.querySelectorAll('.format-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    selectedFormat = this.dataset.format;
+                    document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Configurar escenarios
+            document.querySelectorAll('.scenario-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    currentScenario = this.dataset.scenario;
+                    document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById('currentScenario').textContent = 
+                        currentScenario.charAt(0).toUpperCase() + currentScenario.slice(1);
+                    document.getElementById('currentScenario').style.color = 
+                        currentScenario === 'pesimista' ? 'var(--neon-red)' :
+                        currentScenario === 'normal' ? 'var(--neon-yellow)' : 'var(--neon-green)';
+                    showNotification(`Escenario cambiado a: ${currentScenario}`, 'info');
+                });
+            });
+            
+            // Configurar chart tabs
+            document.querySelectorAll('.chart-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const chartType = this.dataset.chart;
+                    showChart(chartType);
+                    
+                    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Configurar toggle de simulaciones múltiples
+            document.getElementById('multipleSimsToggle').addEventListener('change', function() {
+                document.getElementById('simCountRow').style.display = this.checked ? 'flex' : 'none';
+            });
+        }
+
+        function setupSliders() {
+            // Slider de capital inicial
+            const capitalSlider = document.getElementById('initialCapitalSlider');
+            const capitalValue = document.getElementById('initialCapitalValue');
+            capitalSlider.addEventListener('input', function() {
+                const value = parseInt(this.value);
+                capitalValue.textContent = value >= 1000 ? '$' + value.toLocaleString() : '$' + value;
+            });
+            
+            // Slider de riesgo por trade
+            const riskSlider = document.getElementById('riskPerTradeSlider');
+            const riskValue = document.getElementById('riskPerTradeValue');
+            riskSlider.addEventListener('input', function() {
+                riskValue.textContent = parseFloat(this.value).toFixed(1) + '%';
+            });
+            
+            // Slider de número de trades
+            const tradesSlider = document.getElementById('numTradesSlider');
+            const tradesValue = document.getElementById('numTradesValue');
+            tradesSlider.addEventListener('input', function() {
+                const value = parseInt(this.value);
+                tradesValue.textContent = value.toLocaleString();
+            });
+            
+            // Slider de win rate
+            const winRateSlider = document.getElementById('winRateSlider');
+            const winRateValue = document.getElementById('winRateValue');
+            winRateSlider.addEventListener('input', function() {
+                winRateValue.textContent = this.value + '%';
+            });
+            
+            // Slider de risk/reward
+            const rrSlider = document.getElementById('riskRewardSlider');
+            const rrValue = document.getElementById('riskRewardValue');
+            rrSlider.addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                rrValue.textContent = value < 1 ? `${value.toFixed(1)}:1` : `1:${value.toFixed(1)}`;
+            });
+            
+            // También actualizar los valores iniciales
+            capitalValue.textContent = '$' + parseInt(capitalSlider.value).toLocaleString();
+            riskValue.textContent = parseFloat(riskSlider.value).toFixed(1) + '%';
+            tradesValue.textContent = parseInt(tradesSlider.value).toLocaleString();
+            winRateValue.textContent = winRateSlider.value + '%';
+            rrValue.textContent = '1:' + parseFloat(rrSlider.value).toFixed(1);
+        }
+
+        function setupEventListeners() {
+            // Input files
+            document.getElementById('jsonInput').addEventListener('change', (e) => handleFileImport(e, 'json'));
+            document.getElementById('csvInput').addEventListener('change', (e) => handleFileImport(e, 'csv'));
+            document.getElementById('txtInput').addEventListener('change', (e) => handleFileImport(e, 'txt'));
+            document.getElementById('excelInput').addEventListener('change', (e) => handleFileImport(e, 'excel'));
+            
+            // Botón ejecutar simulación
+            document.getElementById('runSimulationBtn').addEventListener('click', runParametricSimulation);
+            
+            // Botón limpiar
+            document.getElementById('clearDataBtn').addEventListener('click', clearAllData);
+            
+            // Botones exportar
+            document.getElementById('exportBtn').addEventListener('click', exportData);
+            document.getElementById('exportAllBtn').addEventListener('click', exportAllData);
+            document.getElementById('optimizeBtn').addEventListener('click', optimizeParameters);
+        }
+
+        // ===== FUNCIONES DE IMPORTACIÓN =====
+        
+        // Función para debug de importación
+        function debugImport(file, fileType) {
+            console.log('======= DEBUG IMPORT =======');
+            console.log('📄 Archivo:', file.name);
+            console.log('📊 Tipo:', fileType);
+            console.log('📏 Tamaño:', file.size, 'bytes');
+            console.log('🕐 Timestamp:', new Date().toISOString());
+            console.log('============================');
+        }
+
+        function handleFileImport(event, fileType) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            debugImport(file, fileType);
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    
+                    // Procesar según tipo de archivo
+                    let data;
+                    switch(fileType) {
+                        case 'json':
+                            data = importJSON(content, file.name);
+                            break;
+                        case 'csv':
+                            data = importCSV(content, file.name);
+                            break;
+                        case 'txt':
+                            data = importTXT(content, file.name);
+                            break;
+                        case 'excel':
+                            data = importExcel(content, file.name);
+                            break;
+                        default:
+                            throw new Error('Tipo de archivo no soportado');
+                    }
+                    
+                    importedHistoricalData = data;
+                    historicalStats = calculateHistoricalStats(data);
+                    
+                    // Actualizar parámetros desde estadísticas históricas
+                    if (historicalStats) {
+                        updateParametersFromHistoricalStats(historicalStats);
+                    }
+                    
+                    updateImportStats(file, data);
+                    enableSimulationButton();
+                    
+                    showNotification(`Archivo ${file.name} importado exitosamente`, 'success');
+                    
+                } catch (error) {
+                    console.error('Error importando archivo:', error);
+                    showNotification('Error importando archivo: ' + error.message, 'error');
+                }
+            };
+            
+            if (fileType === 'excel') {
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsText(file);
+            }
+            
+            event.target.value = '';
+        }
+
+        function importJSON(content, filename) {
+            try {
+                console.log('📥 Procesando JSON...');
+                const data = JSON.parse(content);
+                console.log('✅ JSON parseado exitosamente');
+                console.log('📊 Estructura del JSON:', Object.keys(data));
+                
+                // CASO 1: Formato de Monte Carlo - MEJOR VALIDACIÓN
+                if (data.monteCarloResults && 
+                    typeof data.monteCarloResults === 'object' &&
+                    data.monteCarloResults !== null) {
+                    
+                    console.log('✅ Detectado formato Monte Carlo con resultados');
+                    
+                    // Verificar que tenga datos válidos
+                    if (data.monteCarloResults.simulations && 
+                        Array.isArray(data.monteCarloResults.simulations) &&
+                        data.monteCarloResults.simulations.length > 0) {
+                        console.log(`✅ ${data.monteCarloResults.simulations.length} simulaciones encontradas`);
+                        return processMonteCarloData(data.monteCarloResults, filename);
+                    } else {
+                        console.warn('⚠️ Formato Monte Carlo detectado pero sin simulaciones válidas');
+                        // Continuar con otros formatos
+                    }
+                }
+                
+                // CASO 2: Formato directo con trades
+                if (data.trades && Array.isArray(data.trades)) {
+                    console.log(`✅ Detectado formato de trades directos (${data.trades.length} trades)`);
+                    return processTradesData(data.trades, filename);
+                }
+                
+                // CASO 3: Estructura nested con simulationResults
+                if (data.simulationResults && 
+                    data.simulationResults.results && 
+                    data.simulationResults.results.trades) {
+                    
+                    console.log('✅ Detectado formato de resultados de simulación');
+                    return processTradesData(data.simulationResults.results.trades, filename);
+                }
+                
+                // CASO 4: El JSON es directamente un array de trades
+                if (Array.isArray(data) && data.length > 0) {
+                    // Verificar que sea un array de trades
+                    const sample = data[0];
+                    if (sample.pnl !== undefined || sample.result !== undefined || 
+                        sample.profit !== undefined || sample.PnL !== undefined) {
+                        console.log(`✅ Detectado array directo de trades (${data.length} trades)`);
+                        return processTradesData(data, filename);
+                    }
+                }
+                
+                // CASO 5: Buscar datos en estructuras anidadas
+                function findTradesInObject(obj, path = '') {
+                    for (const key in obj) {
+                        if (obj.hasOwnProperty(key)) {
+                            const newPath = path ? `${path}.${key}` : key;
+                            const value = obj[key];
+                            
+                            // Verificar si es un array de trades
+                            if (Array.isArray(value) && value.length > 0) {
+                                const sample = value[0];
+                                const hasTradeData = sample && 
+                                    (sample.pnl !== undefined || sample.profit !== undefined || 
+                                     sample.result !== undefined || sample.rmultiple !== undefined ||
+                                     sample.PnL !== undefined || sample.PL !== undefined);
+                                
+                                if (hasTradeData) {
+                                    console.log(`✅ Encontrados trades en: ${newPath} (${value.length} trades)`);
+                                    return value;
+                                }
+                            }
+                            
+                            // Buscar recursivamente
+                            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                                const found = findTradesInObject(value, newPath);
+                                if (found) return found;
+                            }
+                        }
+                    }
+                    return null;
+                }
+                
+                const foundTrades = findTradesInObject(data);
+                if (foundTrades) {
+                    return processTradesData(foundTrades, filename);
+                }
+                
+                // Si llegamos aquí, el formato no es reconocido
+                console.error('❌ Formato JSON no reconocido:', data);
+                throw new Error('Formato JSON no compatible. El archivo debe contener datos de trades o resultados de simulación.');
+                
+            } catch (error) {
+                console.error('❌ Error detallado al parsear JSON:', error);
+                console.error('📄 Contenido recibido (primeros 500 chars):', content.substring(0, 500));
+                throw new Error('JSON inválido o formato no soportado: ' + error.message);
+            }
+        }
+
+        function processMonteCarloData(monteCarloData, filename) {
+            console.log('🔍 Procesando datos Monte Carlo...', monteCarloData);
+            
+            // Verificar estructura mínima
+            if (!monteCarloData) {
+                throw new Error('Datos Monte Carlo vacíos');
+            }
+            
+            const { simulations, finalCapitals, parameters, clustersData, kellyData, percentiles } = monteCarloData;
+            const allTrades = [];
+            
+            // Intentar extraer trades de las simulaciones
+            if (simulations && Array.isArray(simulations) && simulations.length > 0) {
+                console.log(`📊 Procesando ${simulations.length} simulaciones...`);
+                
+                simulations.forEach((simulation, simIndex) => {
+                    if (Array.isArray(simulation) && simulation.length > 1) {
+                        const initialCapital = simulation[0] || 100;
+                        
+                        for (let i = 1; i < simulation.length; i++) {
+                            const equity = simulation[i];
+                            const previousEquity = i === 1 ? initialCapital : simulation[i-1];
+                            const pnl = equity - previousEquity;
+                            
+                            // Solo agregar trades con movimiento significativo
+                            if (Math.abs(pnl) > 0.01) {
+                                allTrades.push({
+                                    id: `${simIndex}-${i}`,
+                                    pnl: pnl,
+                                    rmultiple: previousEquity !== 0 ? pnl / Math.abs(previousEquity) * 10 : 0,
+                                    isWin: pnl > 0,
+                                    simulationId: simIndex,
+                                    tradeNumber: i,
+                                    originalData: {
+                                        equity,
+                                        previousEquity,
+                                        initialCapital
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
+                
+                console.log(`✅ Extraídos ${allTrades.length} trades de simulaciones`);
+            }
+            
+            // Si no hay suficientes trades, crear algunos sintéticos
+            if (allTrades.length < 10) {
+                console.log('🔄 Creando trades sintéticos basados en estadísticas...');
+                
+                const numTrades = parameters?.tradesPerSim || 100;
+                const winRate = kellyData?.winRate || 0.3;
+                const avgWin = kellyData?.avgWin || 500;
+                const avgLoss = kellyData?.avgLoss || 50;
+                
+                for (let i = 0; i < numTrades; i++) {
+                    const isWin = Math.random() < winRate;
+                    const pnl = isWin ? 
+                        avgWin * (0.5 + Math.random()) : 
+                        -avgLoss * (0.5 + Math.random());
+                    
+                    allTrades.push({
+                        id: `synth-${i}`,
+                        pnl: pnl,
+                        rmultiple: pnl / avgLoss,
+                        isWin: isWin,
+                        simulationId: 0,
+                        tradeNumber: i,
+                        originalData: { synthetic: true }
+                    });
+                }
+            }
+            
+            return {
+                trades: allTrades,
+                metadata: {
+                    filename,
+                    importDate: new Date().toISOString(),
+                    totalTrades: allTrades.length,
+                    source: 'Monte Carlo Simulator',
+                    originalFormat: 'monteCarloResults',
+                    parameters: parameters || {},
+                    statistics: {
+                        winRate: kellyData?.winRate || 0,
+                        avgWin: kellyData?.avgWin || 0,
+                        avgLoss: kellyData?.avgLoss || 0,
+                        kellyFraction: kellyData?.kellyFraction || 0
+                    }
+                }
+            };
+        }
+
+        function processTradesData(trades, filename) {
+            console.log(`Procesando ${trades.length} trades`);
+            
+            // Normalizar datos
+            const normalizedTrades = trades.map(trade => {
+                // Buscar PnL en diferentes formatos
+                let pnl = 0;
+                if (trade.pnl !== undefined) pnl = trade.pnl;
+                else if (trade.PnL !== undefined) pnl = trade.PnL;
+                else if (trade.profit !== undefined) pnl = trade.profit;
+                else if (trade.pl !== undefined) pnl = trade.pl;
+                else if (trade.result !== undefined) pnl = trade.result;
+                
+                // Buscar R-Multiple en diferentes formatos
+                let rmultiple = 0;
+                if (trade.rmultiple !== undefined) rmultiple = trade.rmultiple;
+                else if (trade.rMultiple !== undefined) rmultiple = trade.rMultiple;
+                else if (trade.r !== undefined) rmultiple = trade.r;
+                else if (trade.R !== undefined) rmultiple = trade.R;
+                
+                return {
+                    pnl: Number(pnl),
+                    rmultiple: Number(rmultiple),
+                    isWin: Number(pnl) > 0,
+                    originalData: trade
+                };
+            }).filter(t => !isNaN(t.pnl) && t.pnl !== 0);
+            
+            return {
+                trades: normalizedTrades,
+                metadata: {
+                    filename,
+                    importDate: new Date().toISOString(),
+                    totalTrades: normalizedTrades.length
+                }
+            };
+        }
+
+        function importCSV(content, filename) {
+            try {
+                const lines = content.split('\n').filter(line => line.trim() !== '');
+                if (lines.length < 2) throw new Error('CSV vacío o con solo encabezados');
+                
+                const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                const trades = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.trim());
+                    const trade = {};
+                    
+                    headers.forEach((header, index) => {
+                        if (index < values.length) {
+                            let value = values[index];
+                            
+                            // Convertir números
+                            if (!isNaN(value) && value !== '') {
+                                value = parseFloat(value);
+                            }
+                            
+                            trade[header] = value;
+                        }
+                    });
+                    
+                    trades.push(trade);
+                }
+                
+                return processTradesData(trades, filename);
+                
+            } catch (error) {
+                throw new Error('Error procesando CSV: ' + error.message);
+            }
+        }
+
+        function importTXT(content, filename) {
+            try {
+                if ((content.includes(',') || content.includes(';')) && content.includes('\n')) {
+                    return importCSV(content, filename);
+                } else if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+                    return importJSON(content, filename);
+                } else {
+                    // Asumir una lista de números (PnL)
+                    const lines = content.split('\n').filter(line => line.trim() !== '');
+                    const trades = lines.map((line, index) => {
+                        const pnl = parseFloat(line);
+                        return !isNaN(pnl) ? { pnl } : null;
+                    }).filter(t => t !== null);
+                    
+                    return processTradesData(trades, filename);
+                }
+            } catch (error) {
+                throw new Error('Error procesando TXT: ' + error.message);
+            }
+        }
+
+        function importExcel(content, filename) {
+            showNotification('Para Excel, usar formato CSV exportado', 'info');
+            
+            // Datos de ejemplo para demostración
+            const trades = [
+                { pnl: 100, rmultiple: 1.5 },
+                { pnl: -50, rmultiple: -0.5 },
+                { pnl: 200, rmultiple: 2.0 },
+                { pnl: -30, rmultiple: -0.3 },
+                { pnl: 150, rmultiple: 1.2 }
+            ];
+            
+            return processTradesData(trades, filename);
+        }
+
+        function calculateHistoricalStats(data) {
+            if (!data || !data.trades || data.trades.length === 0) return null;
+            
+            const trades = data.trades;
+            const winningTrades = trades.filter(t => t.isWin);
+            const losingTrades = trades.filter(t => !t.isWin);
+            
+            // Si tenemos estadísticas en los metadatos, usarlas
+            if (data.metadata && data.metadata.statistics) {
+                const stats = data.metadata.statistics;
+                return {
+                    winRate: stats.winRate * 100,
+                    avgWin: stats.avgWin,
+                    avgLoss: stats.avgLoss,
+                    avgRiskReward: stats.avgWin > 0 && stats.avgLoss > 0 ? 
+                        stats.avgWin / stats.avgLoss : 2.0,
+                    totalTrades: trades.length,
+                    winningTrades: winningTrades.length,
+                    losingTrades: losingTrades.length,
+                    totalPnL: ss.sum(trades.map(t => t.pnl)),
+                    avgPnL: ss.mean(trades.map(t => t.pnl)),
+                    pnlStdDev: ss.standardDeviation(trades.map(t => t.pnl)),
+                    source: 'Monte Carlo'
+                };
+            }
+            
+            // Calcular normalmente si no hay estadísticas en metadatos
+            const winRate = winningTrades.length / trades.length;
+            const avgWin = winningTrades.length > 0 ? 
+                ss.mean(winningTrades.map(t => t.pnl)) : 0;
+            const avgLoss = losingTrades.length > 0 ? 
+                Math.abs(ss.mean(losingTrades.map(t => t.pnl))) : 0;
+            
+            let avgRR = 2.0;
+            const tradesWithR = trades.filter(t => t.rmultiple !== 0);
+            if (tradesWithR.length > 0) {
+                const winningR = tradesWithR.filter(t => t.rmultiple > 0).map(t => t.rmultiple);
+                const losingR = tradesWithR.filter(t => t.rmultiple < 0).map(t => Math.abs(t.rmultiple));
+                
+                if (winningR.length > 0 && losingR.length > 0) {
+                    const avgWinR = ss.mean(winningR);
+                    const avgLossR = ss.mean(losingR);
+                    avgRR = avgLossR > 0 ? avgWinR / avgLossR : avgWinR;
+                }
+            } else if (avgLoss > 0) {
+                avgRR = avgWin / avgLoss;
+            }
+            
+            return {
+                winRate: winRate * 100,
+                avgWin,
+                avgLoss,
+                avgRiskReward: avgRR,
+                totalTrades: trades.length,
+                winningTrades: winningTrades.length,
+                losingTrades: losingTrades.length,
+                totalPnL: ss.sum(trades.map(t => t.pnl)),
+                avgPnL: ss.mean(trades.map(t => t.pnl)),
+                pnlStdDev: ss.standardDeviation(trades.map(t => t.pnl)),
+                source: 'Calculated from trades'
+            };
+        }
+
+        function updateParametersFromHistoricalStats(stats) {
+            if (!stats) return;
+            
+            console.log('Actualizando parámetros desde estadísticas históricas:', stats);
+            
+            // Actualizar Win Rate si es válido
+            if (stats.winRate > 0 && stats.winRate <= 100) {
+                const winRateValue = Math.max(1, Math.min(99, Math.round(stats.winRate)));
+                document.getElementById('winRateSlider').value = winRateValue;
+                document.getElementById('winRateValue').textContent = winRateValue + '%';
+                
+                console.log(`Win Rate ajustado a: ${winRateValue}%`);
+            }
+            
+            // Actualizar Risk/Reward si es válido
+            if (stats.avgRiskReward > 0) {
+                const rrValue = Math.max(0.5, Math.min(10, stats.avgRiskReward));
+                document.getElementById('riskRewardSlider').value = rrValue.toFixed(1);
+                document.getElementById('riskRewardValue').textContent = rrValue < 1 ? 
+                    `${rrValue.toFixed(1)}:1` : `1:${rrValue.toFixed(1)}`;
+                
+                console.log(`Risk/Reward ajustado a: ${rrValue < 1 ? rrValue.toFixed(1) + ':1' : '1:' + rrValue.toFixed(1)}`);
+            }
+            
+            // Calcular riesgo promedio basado en desviación estándar
+            if (stats.avgPnL > 0 && stats.pnlStdDev > 0) {
+                const riskPercent = Math.min(50, Math.max(0.1, (stats.pnlStdDev / Math.abs(stats.avgPnL)) * 100));
+                document.getElementById('riskPerTradeSlider').value = riskPercent.toFixed(1);
+                document.getElementById('riskPerTradeValue').textContent = riskPercent.toFixed(1) + '%';
+                
+                console.log(`Riesgo por trade ajustado a: ${riskPercent.toFixed(1)}%`);
+            }
+            
+            // Ajustar número de trades basado en datos históricos
+            if (stats.totalTrades > 0) {
+                const numTrades = Math.min(5000, Math.max(1, stats.totalTrades));
+                document.getElementById('numTradesSlider').value = numTrades;
+                document.getElementById('numTradesValue').textContent = numTrades.toLocaleString();
+                
+                console.log(`Número de trades ajustado a: ${numTrades}`);
+            }
+            
+            // Actualizar UI con información
+            let infoText = `Histórico: ${stats.totalTrades} trades`;
+            if (stats.winRate > 0) {
+                infoText += ` | WR: ${Math.round(stats.winRate)}%`;
+            }
+            if (stats.avgRiskReward > 0) {
+                infoText += ` | R:R: ${stats.avgRiskReward.toFixed(1)}`;
+            }
+            
+            document.getElementById('activeParams').textContent = infoText;
+            
+            // Mostrar notificación
+            showNotification(`Parámetros ajustados de ${stats.totalTrades} trades históricos (WR: ${Math.round(stats.winRate)}%)`, 'success');
+        }
+
+        function updateImportStats(file, data) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileType').textContent = file.type || 'Datos Trading';
+            document.getElementById('recordCount').textContent = data.trades ? data.trades.length : '0';
+            document.getElementById('importStatus').textContent = 'Importado ✓';
+            document.getElementById('importStatus').style.color = 'var(--neon-green)';
+            
+            if (historicalStats) {
+                document.getElementById('systemStatus').textContent = 'Datos listos';
+                document.getElementById('systemStatus').style.color = 'var(--neon-green)';
+                
+                // Mostrar información adicional si es de Monte Carlo
+                if (data.metadata && data.metadata.source === 'Monte Carlo Simulator') {
+                    const stats = data.metadata.statistics || {};
+                    const infoText = `Monte Carlo: ${Math.round(stats.winRate * 100)}% WR, Kelly: ${(stats.kellyFraction * 100).toFixed(1)}%`;
+                    document.getElementById('activeParams').textContent = infoText;
+                    showNotification(`✅ Datos Monte Carlo importados (${data.trades.length} trades)`, 'success');
+                }
+                
+                updateParametersFromHistoricalStats(historicalStats);
+            }
+        }
+
+        // ===== SIMULACIÓN PARAMÉTRICA =====
+        function runParametricSimulation() {
+            if (isSimulationRunning) return;
+            
+            try {
+                isSimulationRunning = true;
+                const startTime = performance.now();
+                
+                // Obtener parámetros
+                const params = getSimulationParameters();
+                
+                document.getElementById('runSimulationBtn').disabled = true;
+                document.getElementById('runSimulationBtn').innerHTML = '<span class="pulse">🔄</span> Simulando...';
+                document.getElementById('systemStatus').textContent = 'Simulando...';
+                document.getElementById('systemStatus').style.color = 'var(--neon-yellow)';
+                
+                showNotification(`Iniciando simulación paramétrica...`, 'info');
+                
+                setTimeout(() => {
+                    try {
+                        // Usar estadísticas históricas si están disponibles
+                        if (historicalStats) {
+                            params.useHistoricalStats = true;
+                            params.historicalWinRate = historicalStats.winRate / 100;
+                            params.historicalRiskReward = historicalStats.avgRiskReward;
+                        }
+                        
+                        // Ejecutar simulación única o múltiple
+                        if (document.getElementById('multipleSimsToggle').checked) {
+                            const numSims = parseInt(document.getElementById('numSimulations').value);
+                            simulationResults = runMultipleSimulations(params, numSims);
+                        } else {
+                            simulationResults = runSingleSimulation(params);
+                        }
+                        
+                        const endTime = performance.now();
+                        simulationResults.executionTime = endTime - startTime;
+                        simulationResults.timestamp = new Date().toISOString();
+                        
+                        updateResultsUI(simulationResults);
+                        generateAllCharts();
+                        enableExportButtons();
+                        saveToLocalStorage();
+                        
+                        showNotification(`Simulación completada en ${simulationResults.executionTime.toFixed(0)}ms`, 'success');
+                        
+                    } catch (error) {
+                        console.error('Error en simulación:', error);
+                        showNotification('Error en simulación: ' + error.message, 'error');
+                    } finally {
+                        isSimulationRunning = false;
+                        document.getElementById('runSimulationBtn').disabled = false;
+                        document.getElementById('runSimulationBtn').innerHTML = '<span>🚀</span> Ejecutar Simulación';
+                        document.getElementById('systemStatus').textContent = 'Completado';
+                        document.getElementById('systemStatus').style.color = 'var(--neon-green)';
+                    }
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error iniciando simulación:', error);
+                showNotification('Error: ' + error.message, 'error');
+                isSimulationRunning = false;
+                document.getElementById('runSimulationBtn').disabled = false;
+            }
+        }
+
+        function runQuickTest() {
+            // Configurar parámetros para test rápido
+            document.getElementById('initialCapitalSlider').value = 5000;
+            document.getElementById('initialCapitalValue').textContent = '$5,000';
+            document.getElementById('riskPerTradeSlider').value = 1.5;
+            document.getElementById('riskPerTradeValue').textContent = '1.5%';
+            document.getElementById('numTradesSlider').value = 50;
+            document.getElementById('numTradesValue').textContent = '50';
+            document.getElementById('winRateSlider').value = 60;
+            document.getElementById('winRateValue').textContent = '60%';
+            
+            showNotification('Parámetros configurados para test rápido', 'info');
+            
+            // Ejecutar simulación
+            setTimeout(() => {
+                runParametricSimulation();
+            }, 500);
+        }
+
+        function getSimulationParameters() {
+            const initialCapital = parseFloat(document.getElementById('initialCapitalSlider').value);
+            const riskPerTrade = parseFloat(document.getElementById('riskPerTradeSlider').value) / 100;
+            const numTrades = parseInt(document.getElementById('numTradesSlider').value);
+            const winRate = parseInt(document.getElementById('winRateSlider').value) / 100;
+            const riskReward = parseFloat(document.getElementById('riskRewardSlider').value);
+            
+            // Ajustar parámetros según escenario
+            let scenarioMultiplier = 1;
+            switch(currentScenario) {
+                case 'pesimista':
+                    scenarioMultiplier = 0.7;
+                    break;
+                case 'optimista':
+                    scenarioMultiplier = 1.3;
+                    break;
+            }
+            
+            // Verificar correctamente si hay estadísticas históricas disponibles
+            const useHistoricalData = historicalStats && historicalStats.winRate && historicalStats.avgRiskReward;
+            
+            return {
+                initialCapital,
+                riskPerTrade: riskPerTrade * scenarioMultiplier,
+                numTrades,
+                winRate: Math.max(0.01, Math.min(0.99, winRate * scenarioMultiplier)),
+                riskReward: riskReward * scenarioMultiplier,
+                scenario: currentScenario,
+                scenarioMultiplier,
+                useHistoricalStats: useHistoricalData,
+                historicalStats: useHistoricalData ? historicalStats : null
+            };
+        }
+
+        // ===== FUNCIÓN runSingleSimulation CORREGIDA (CORRECCIÓN 4) =====
+        function runSingleSimulation(params) {
+            const { initialCapital, riskPerTrade, numTrades, winRate, riskReward, useHistoricalStats, historicalStats } = params;
+            
+            // Verificar primero si useHistoricalStats es true Y si historicalStats existe
+            let actualWinRate = winRate;
+            let actualRiskReward = riskReward;
+            
+            if (useHistoricalStats && historicalStats) {
+                // Asegurarse de que las estadísticas sean números válidos
+                if (historicalStats.winRate && historicalStats.avgRiskReward) {
+                    actualWinRate = historicalStats.winRate / 100;
+                    actualRiskReward = historicalStats.avgRiskReward;
+                    console.log('Usando estadísticas históricas:', {actualWinRate, actualRiskReward});
+                }
+            }
+            
+            let capital = initialCapital;
+            const equityCurve = [capital];
+            const trades = [];
+            
+            // Estadísticas
+            let winningTrades = 0;
+            let losingTrades = 0;
+            let totalWinAmount = 0;
+            let totalLossAmount = 0;
+            let maxCapital = capital;
+            let maxDrawdown = 0;
+            let maxDrawdownAmount = 0;
+            let currentDrawdown = 0;
+            
+            // Para Sharpe Ratio
+            const returns = [];
+            let previousCapital = capital;
+            
+            for (let i = 0; i < numTrades; i++) {
+                const isWin = Math.random() < actualWinRate;
+                const riskAmount = capital * riskPerTrade;
+                
+                let tradeResult;
+                if (isWin) {
+                    // Trade ganador: risk * riskReward
+                    tradeResult = riskAmount * actualRiskReward;
+                    winningTrades++;
+                    totalWinAmount += tradeResult;
+                } else {
+                    // Trade perdedor: pierde el riesgo
+                    tradeResult = -riskAmount;
+                    losingTrades++;
+                    totalLossAmount += Math.abs(tradeResult);
+                }
+                
+                capital += tradeResult;
+                capital = Math.max(capital, 10); // Mínimo $10 para evitar divisiones por 0
+                
+                equityCurve.push(capital);
+                
+                // Calcular drawdown
+                maxCapital = Math.max(maxCapital, capital);
+                currentDrawdown = ((maxCapital - capital) / maxCapital) * 100;
+                maxDrawdown = Math.max(maxDrawdown, currentDrawdown);
+                maxDrawdownAmount = Math.max(maxDrawdownAmount, maxCapital - capital);
+                
+                // Calcular retorno para Sharpe Ratio
+                if (previousCapital > 0) {
+                    const dailyReturn = (capital - previousCapital) / previousCapital;
+                    returns.push(dailyReturn);
+                }
+                previousCapital = capital;
+                
+                trades.push({
+                    id: i + 1,
+                    result: tradeResult,
+                    isWin,
+                    capitalAfter: capital,
+                    drawdown: currentDrawdown
+                });
+            }
+            
+            // Calcular métricas básicas
+            const finalCapital = capital;
+            const totalReturn = ((finalCapital - initialCapital) / initialCapital) * 100;
+            const actualWinRateCalculated = (winningTrades / numTrades) * 100;
+            const profitFactor = totalLossAmount > 0 ? totalWinAmount / totalLossAmount : totalWinAmount > 0 ? Infinity : 0;
+            
+            // ============ CALCULAR SHARPE RATIO CORRECTAMENTE ============
+            let sharpeRatio = 0;
+            if (returns.length > 1) {
+                try {
+                    const avgReturn = ss.mean(returns);
+                    const stdReturn = ss.standardDeviation(returns);
+                    
+                    // Sharpe Ratio anualizado (asumiendo 252 días de trading al año)
+                    if (stdReturn > 0) {
+                        sharpeRatio = (avgReturn / stdReturn) * Math.sqrt(252);
+                    }
+                    
+                    console.log(`📈 Sharpe Ratio calculado: avg=${avgReturn.toFixed(6)}, std=${stdReturn.toFixed(6)}, sharpe=${sharpeRatio.toFixed(2)}`);
+                } catch (error) {
+                    console.error("Error calculando Sharpe Ratio:", error);
+                    sharpeRatio = 0;
+                }
+            }
+            
+            // ============ CALCULAR PROBABILIDAD DE RUINA ============
+            // Ruina = perder más del 50% del capital inicial
+            const ruinThreshold = initialCapital * 0.5;
+            let ruinProbability = 0;
+            
+            // Calcular probabilidad basada en la simulación
+            if (finalCapital < ruinThreshold) {
+                ruinProbability = 100; // Esta simulación específica resultó en ruina
+            }
+            
+            // Calcular probabilidad teórica usando fórmula de Kelly o simulación de Monte Carlo
+            if (actualWinRateCalculated > 0 && actualRiskReward > 0) {
+                // Fórmula simplificada de probabilidad de ruina
+                const edge = (actualWinRateCalculated/100 * actualRiskReward) - ((1 - actualWinRateCalculated/100) * 1);
+                const riskOfRuin = Math.exp(-2 * edge * (initialCapital / (riskPerTrade * initialCapital)));
+                ruinProbability = Math.max(0, Math.min(100, riskOfRuin * 100));
+            }
+            
+            // ============ CALCULAR EXPECTATIVA MATEMÁTICA ============
+            const mathematicalExpectation = (totalWinAmount - totalLossAmount) / numTrades;
+            
+            // ============ CALCULAR MÁXIMO DRAWDOWN ============
+            // Ya calculado durante la simulación
+            
+            return {
+                parameters: params,
+                results: {
+                    initialCapital,
+                    finalCapital,
+                    totalReturn,
+                    equityCurve,
+                    trades,
+                    statistics: {
+                        winningTrades,
+                        losingTrades,
+                        totalTrades: numTrades,
+                        actualWinRate: actualWinRateCalculated,
+                        profitFactor,
+                        avgWin: winningTrades > 0 ? totalWinAmount / winningTrades : 0,
+                        avgLoss: losingTrades > 0 ? totalLossAmount / losingTrades : 0,
+                        maxDrawdown: parseFloat(maxDrawdown.toFixed(2)),
+                        maxDrawdownAmount: parseFloat(maxDrawdownAmount.toFixed(2)),
+                        sharpeRatio: parseFloat(sharpeRatio.toFixed(3)),
+                        ruinProbability: parseFloat(ruinProbability.toFixed(1)),
+                        mathematicalExpectation: parseFloat(mathematicalExpectation.toFixed(2)),
+                        totalWinAmount: parseFloat(totalWinAmount.toFixed(2)),
+                        totalLossAmount: parseFloat(totalLossAmount.toFixed(2)),
+                        bestTrade: trades.length > 0 ? parseFloat(Math.max(...trades.map(t => t.result)).toFixed(2)) : 0,
+                        worstTrade: trades.length > 0 ? parseFloat(Math.min(...trades.map(t => t.result)).toFixed(2)) : 0,
+                        returns: returns
+                    }
+                }
+            };
+        }
+
+        // ===== FUNCIÓN runMultipleSimulations CORREGIDA (CORRECCIÓN 5) =====
+        function runMultipleSimulations(baseParams, numSimulations) {
+            const allResults = [];
+            const finalCapitals = [];
+            
+            // Para métricas agregadas
+            let totalMaxDrawdown = 0;
+            let totalSharpeRatio = 0;
+            let totalRuinProbability = 0;
+            let ruinCount = 0;
+            
+            for (let i = 0; i < numSimulations; i++) {
+                // Variar ligeramente los parámetros para cada simulación
+                const variedParams = {
+                    ...baseParams,
+                    winRate: baseParams.winRate * (0.9 + Math.random() * 0.2), // ±10%
+                    riskReward: baseParams.riskReward * (0.8 + Math.random() * 0.4) // ±20%
+                };
+                
+                const result = runSingleSimulation(variedParams);
+                allResults.push(result);
+                finalCapitals.push(result.results.finalCapital);
+                
+                // Acumular métricas para promedios
+                const stats = result.results.statistics;
+                totalMaxDrawdown += stats.maxDrawdown || 0;
+                totalSharpeRatio += stats.sharpeRatio || 0;
+                totalRuinProbability += stats.ruinProbability || 0;
+                
+                // Contar ruinas
+                if (result.results.finalCapital < baseParams.initialCapital * 0.5) {
+                    ruinCount++;
+                }
+                
+                if (i % 10 === 0) {
+                    updateProgress(i / numSimulations * 100);
+                }
+            }
+            
+            // Calcular estadísticas de múltiples simulaciones
+            finalCapitals.sort((a, b) => a - b);
+            
+            // Calcular promedios
+            const avgMaxDrawdown = totalMaxDrawdown / numSimulations;
+            const avgSharpeRatio = totalSharpeRatio / numSimulations;
+            const avgRuinProbability = totalRuinProbability / numSimulations;
+            const actualRuinProbability = (ruinCount / numSimulations) * 100;
+            
+            console.log(`📊 Métricas agregadas de ${numSimulations} simulaciones:`);
+            console.log(`   - Drawdown promedio: ${avgMaxDrawdown.toFixed(2)}%`);
+            console.log(`   - Sharpe Ratio promedio: ${avgSharpeRatio.toFixed(3)}`);
+            console.log(`   - Prob. Ruina promedio: ${avgRuinProbability.toFixed(1)}%`);
+            console.log(`   - Ruinas reales: ${ruinCount} (${actualRuinProbability.toFixed(1)}%)`);
+            
+            return {
+                multipleSimulations: true,
+                baseParameters: baseParams,
+                simulations: allResults,
+                aggregatedStats: {
+                    minFinalCapital: Math.min(...finalCapitals),
+                    maxFinalCapital: Math.max(...finalCapitals),
+                    avgFinalCapital: ss.mean(finalCapitals),
+                    medianFinalCapital: ss.median(finalCapitals),
+                    stdFinalCapital: ss.standardDeviation(finalCapitals),
+                    percentile5: finalCapitals[Math.floor(finalCapitals.length * 0.05)],
+                    percentile25: finalCapitals[Math.floor(finalCapitals.length * 0.25)],
+                    percentile50: finalCapitals[Math.floor(finalCapitals.length * 0.50)],
+                    percentile75: finalCapitals[Math.floor(finalCapitals.length * 0.75)],
+                    percentile95: finalCapitals[Math.floor(finalCapitals.length * 0.95)],
+                    ruinCount: ruinCount,
+                    totalSimulations: numSimulations,
+                    avgMaxDrawdown: parseFloat(avgMaxDrawdown.toFixed(2)),
+                    avgSharpeRatio: parseFloat(avgSharpeRatio.toFixed(3)),
+                    avgRuinProbability: parseFloat(avgRuinProbability.toFixed(1)),
+                    actualRuinProbability: parseFloat(actualRuinProbability.toFixed(1))
+                }
+            };
+        }
+
+        function updateProgress(percent) {
+            if (percent % 25 === 0) {
+                console.log(`Progreso: ${percent.toFixed(0)}%`);
+            }
+        }
+
+        // ===== VISUALIZACIÓN =====
+        // Función para redimensionar canvas
+        function resizeChartCanvas(chartId) {
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return null;
+            
+            const wrapper = canvas.closest('.chart-wrapper');
+            if (!wrapper) return null;
+            
+            // Obtener dimensiones del contenedor (restar padding)
+            const computedStyle = window.getComputedStyle(wrapper);
+            const paddingLeft = parseFloat(computedStyle.paddingLeft) || 15;
+            const paddingRight = parseFloat(computedStyle.paddingRight) || 15;
+            const paddingTop = parseFloat(computedStyle.paddingTop) || 15;
+            const paddingBottom = parseFloat(computedStyle.paddingBottom) || 15;
+            
+            const availableWidth = wrapper.clientWidth - paddingLeft - paddingRight;
+            const availableHeight = wrapper.clientHeight - paddingTop - paddingBottom - 40; // 40px para el título
+            
+            // Actualizar dimensiones del canvas
+            canvas.width = Math.max(availableWidth, 300); // Mínimo 300px
+            canvas.height = Math.max(availableHeight, 200); // Mínimo 200px
+            
+            console.log(`📏 Canvas ${chartId} redimensionado a: ${canvas.width}x${canvas.height}`);
+            return { width: canvas.width, height: canvas.height };
+        }
+
+        function generateAllCharts() {
+            if (!simulationResults) return;
+            
+            try {
+                // Destruir gráficas existentes
+                Object.values(currentCharts).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+                currentCharts = {};
+                
+                // Generar todas las gráficas
+                generateEquityChart();
+                
+                if (document.getElementById('histogramsToggle').checked) {
+                    generateHistogramChart();
+                }
+                
+                if (simulationResults.multipleSimulations) {
+                    generateMultipleSimulationsChart();
+                    generateScenariosComparisonChart();
+                }
+                
+                generateDistributionChart();
+                
+                showNotification('Gráficas generadas', 'success');
+                
+            } catch (error) {
+                console.error('Error generando gráficas:', error);
+                showNotification('Error generando gráficas', 'error');
+            }
+        }
+
+        function showChart(chartType) {
+            // Ocultar todas las gráficas
+            document.querySelectorAll('.chart-wrapper').forEach(wrapper => {
+                wrapper.style.display = 'none';
+            });
+            
+            // Mostrar la gráfica seleccionada
+            const wrapper = document.getElementById(chartType + 'ChartWrapper');
+            if (wrapper) {
+                wrapper.style.display = 'block';
+                
+                // Redimensionar y actualizar la gráfica si existe
+                setTimeout(() => {
+                    const chart = currentCharts[chartType];
+                    if (chart) {
+                        resizeChartCanvas(chartType + 'Chart');
+                        chart.resize();
+                        chart.update();
+                    }
+                }, 50);
+            }
+        }
+
+        function generateEquityChart() {
+            if (!simulationResults) return;
+            
+            const canvas = document.getElementById('equityChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('equityPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            // Redimensionar canvas
+            const dimensions = resizeChartCanvas('equityChart');
+            
+            let equityData;
+            let chartTitle;
+            
+            if (simulationResults.multipleSimulations) {
+                // Mostrar varias curvas de equity
+                const numCurves = Math.min(10, simulationResults.simulations.length);
+                const datasets = [];
+                
+                for (let i = 0; i < numCurves; i++) {
+                    const sim = simulationResults.simulations[i];
+                    datasets.push({
+                        label: `Sim ${i + 1}`,
+                        data: sim.results.equityCurve,
+                        borderColor: `rgba(0, 240, 255, ${0.1 + (i % 5) * 0.15})`,
+                        backgroundColor: 'transparent',
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        tension: 0.1
+                    });
+                }
+                
+                equityData = {
+                    labels: Array.from({length: simulationResults.simulations[0].results.equityCurve.length}, (_, i) => i),
+                    datasets: datasets
+                };
+                chartTitle = `Curvas de Equity (${numCurves} simulaciones)`;
+                
+            } else {
+                // Mostrar una sola curva
+                equityData = {
+                    labels: Array.from({length: simulationResults.results.equityCurve.length}, (_, i) => i),
+                    datasets: [{
+                        label: 'Equity',
+                        data: simulationResults.results.equityCurve,
+                        borderColor: 'rgba(0, 240, 255, 1)',
+                        backgroundColor: 'rgba(0, 240, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                };
+                chartTitle = 'Curva de Equity Simulada';
+            }
+            
+            currentCharts.equity = new Chart(ctx, {
+                type: 'line',
+                data: equityData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: simulationResults.multipleSimulations,
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: chartTitle,
+                            color: '#00f0ff',
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Capital ($)',
+                                color: '#00f0ff'
+                            },
+                            grid: { 
+                                color: 'rgba(0, 240, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                },
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Número de Trade',
+                                color: '#00f0ff'
+                            },
+                            grid: { 
+                                color: 'rgba(0, 240, 255, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#dfefff',
+                                maxTicksLimit: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        line: {
+                            tension: 0.2
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateHistogramChart() {
+            if (!simulationResults) return;
+            
+            const canvas = document.getElementById('histogramChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('histogramPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            // Redimensionar canvas
+            resizeChartCanvas('histogramChart');
+            
+            let finalCapitals;
+            let chartTitle;
+            
+            if (simulationResults.multipleSimulations) {
+                finalCapitals = simulationResults.simulations.map(s => s.results.finalCapital);
+                chartTitle = 'Distribución de Capitales Finales';
+            } else {
+                // Para simulación única, usar los resultados de trades
+                const tradeResults = simulationResults.results.trades.map(t => t.result);
+                finalCapitals = tradeResults;
+                chartTitle = 'Distribución de Resultados de Trades';
+            }
+            
+            // Crear histograma
+            const min = Math.min(...finalCapitals);
+            const max = Math.max(...finalCapitals);
+            const binCount = 15;
+            const binSize = (max - min) / binCount;
+            
+            const bins = Array(binCount).fill(0);
+            finalCapitals.forEach(value => {
+                const binIndex = Math.min(Math.floor((value - min) / binSize), binCount - 1);
+                if (binIndex >= 0) bins[binIndex]++;
+            });
+            
+            const labels = bins.map((_, i) => {
+                const binStart = min + i * binSize;
+                return `$${Math.round(binStart)}`;
+            });
+            
+            currentCharts.histogram = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Frecuencia',
+                        data: bins,
+                        backgroundColor: 'rgba(168, 85, 247, 0.6)',
+                        borderColor: 'rgba(168, 85, 247, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { 
+                                color: '#dfefff',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: chartTitle,
+                            color: '#a855f7',
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Frecuencia',
+                                color: '#a855f7'
+                            },
+                            grid: { 
+                                color: 'rgba(0, 240, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#dfefff',
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            beginAtZero: true
+                        },
+                        x: {
+                            grid: { 
+                                color: 'rgba(0, 240, 255, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#dfefff',
+                                maxTicksLimit: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateMultipleSimulationsChart() {
+            if (!simulationResults || !simulationResults.multipleSimulations) return;
+            
+            const canvas = document.getElementById('multipleChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('multiplePlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            // Redimensionar canvas
+            resizeChartCanvas('multipleChart');
+            
+            const finalCapitals = simulationResults.simulations.map(s => s.results.finalCapital);
+            const simulationIds = finalCapitals.map((_, i) => i + 1);
+            
+            // Ordenar para mejor visualización
+            const sortedData = finalCapitals
+                .map((value, index) => ({value, index}))
+                .sort((a, b) => a.value - b.value);
+            
+            currentCharts.multiple = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Capital Final',
+                        data: sortedData.map(d => ({x: d.index + 1, y: d.value})),
+                        backgroundColor: sortedData.map(d => {
+                            const initial = simulationResults.baseParameters.initialCapital;
+                            return d.value > initial ? 'rgba(0, 255, 136, 0.6)' : 'rgba(255, 85, 85, 0.6)';
+                        }),
+                        borderColor: sortedData.map(d => {
+                            const initial = simulationResults.baseParameters.initialCapital;
+                            return d.value > initial ? 'rgba(0, 255, 136, 1)' : 'rgba(255, 85, 85, 1)';
+                        }),
+                        borderWidth: 1,
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { 
+                                color: '#dfefff',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: `Resultados de ${simulationResults.aggregatedStats.totalSimulations} Simulaciones`,
+                            color: '#6f5cff',
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Capital Final ($)',
+                                color: '#6f5cff'
+                            },
+                            grid: { 
+                                color: 'rgba(0, 240, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                },
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Número de Simulación',
+                                color: '#6f5cff'
+                            },
+                            grid: { 
+                                color: 'rgba(0, 240, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#dfefff',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateScenariosComparisonChart() {
+            const canvas = document.getElementById('scenariosChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('scenariosPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            // Redimensionar canvas
+            resizeChartCanvas('scenariosChart');
+            
+            // Simular resultados para los tres escenarios
+            const scenarios = ['pesimista', 'normal', 'optimista'];
+            const scenarioData = scenarios.map(scenario => {
+                const params = getSimulationParameters();
+                params.scenario = scenario;
+                
+                // Ajustar según escenario
+                let multiplier;
+                switch(scenario) {
+                    case 'pesimista': multiplier = 0.7; break;
+                    case 'normal': multiplier = 1.0; break;
+                    case 'optimista': multiplier = 1.3; break;
+                }
+                
+                params.winRate = params.winRate * multiplier;
+                params.riskReward = params.riskReward * multiplier;
+                
+                const result = runSingleSimulation(params);
+                return {
+                    scenario,
+                    finalCapital: result.results.finalCapital,
+                    maxDrawdown: result.results.statistics.maxDrawdown,
+                    winRate: result.results.statistics.actualWinRate
+                };
+            });
+            
+            currentCharts.scenarios = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: scenarioData.map(d => d.scenario.toUpperCase()),
+                    datasets: [
+                        {
+                            label: 'Capital Final ($)',
+                            data: scenarioData.map(d => d.finalCapital),
+                            backgroundColor: [
+                                'rgba(255, 85, 85, 0.6)',
+                                'rgba(255, 255, 0, 0.6)',
+                                'rgba(0, 255, 136, 0.6)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 85, 85, 1)',
+                                'rgba(255, 255, 0, 1)',
+                                'rgba(0, 255, 136, 1)'
+                            ],
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Max Drawdown (%)',
+                            data: scenarioData.map(d => d.maxDrawdown),
+                            backgroundColor: 'rgba(0, 240, 255, 0.3)',
+                            borderColor: 'rgba(0, 240, 255, 1)',
+                            borderWidth: 1,
+                            type: 'line',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { 
+                                color: '#dfefff',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Comparación de Escenarios',
+                            color: '#ff8c00',
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Capital Final ($)',
+                                color: '#ff8c00'
+                            },
+                            grid: { 
+                                color: 'rgba(0, 240, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                },
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Max Drawdown (%)',
+                                color: '#00f0ff'
+                            },
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#00f0ff',
+                                callback: function(value) {
+                                    return value.toFixed(1) + '%';
+                                },
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { 
+                                color: 'rgba(0, 240, 255, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: { 
+                                color: '#dfefff',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateDistributionChart() {
+            if (!simulationResults) return;
+            
+            const canvas = document.getElementById('distributionChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('distributionPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            // Redimensionar canvas
+            resizeChartCanvas('distributionChart');
+            
+            const trades = simulationResults.multipleSimulations ? 
+                simulationResults.simulations[0].results.trades : 
+                simulationResults.results.trades;
+            
+            const wins = trades.filter(t => t.isWin).length;
+            const losses = trades.filter(t => !t.isWin).length;
+            
+            currentCharts.distribution = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Trades Ganadores', 'Trades Perdedores'],
+                    datasets: [{
+                        data: [wins, losses],
+                        backgroundColor: [
+                            'rgba(0, 255, 136, 0.8)',
+                            'rgba(255, 85, 85, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(0, 255, 136, 1)',
+                            'rgba(255, 85, 85, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { 
+                                color: '#dfefff',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Distribución de Trades',
+                            color: '#00ff88',
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== FUNCIÓN updateResultsUI CORREGIDA (CORRECCIÓN 3) =====
+        function updateResultsUI(results) {
+            console.log("📊 Actualizando UI con resultados:", results);
+            
+            if (!results) {
+                console.error("❌ ERROR: No hay resultados para mostrar");
+                showNotification("Ejecuta una simulación primero", "warning");
+                return;
+            }
+            
+            try {
+                // Determinar si es simulación múltiple o única
+                const isMultiple = results.multipleSimulations === true;
+                
+                console.log(`📈 Tipo de simulación: ${isMultiple ? 'MÚLTIPLE' : 'ÚNICA'}`);
+                console.log(`📋 Total de simulaciones: ${isMultiple ? results.aggregatedStats?.totalSimulations || 0 : 1}`);
+                
+                // Obtener estadísticas
+                let aggregatedStats = results.aggregatedStats || {};
+                let finalCapital;
+                let initialCapital;
+                
+                if (isMultiple) {
+                    // ==============================================
+                    // SIMULACIONES MÚLTIPLES - CALCULAR MÉTRICAS AGREGADAS
+                    // ==============================================
+                    if (!results.simulations || results.simulations.length === 0) {
+                        console.error("❌ ERROR: Simulación múltiple sin simulaciones");
+                        return;
+                    }
+                    
+                    const simulations = results.simulations;
+                    initialCapital = results.baseParameters?.initialCapital || 10000;
+                    
+                    // 1. CALCULAR PROMEDIOS DE TODAS LAS SIMULACIONES
+                    let totalWinningTrades = 0;
+                    let totalLosingTrades = 0;
+                    let totalProfitFactor = 0;
+                    let totalMathematicalExpectation = 0;
+                    let totalMaxDrawdown = 0;
+                    let totalSharpeRatio = 0;
+                    let totalActualWinRate = 0;
+                    let validSimulations = 0;
+                    
+                    // También recolectar todos los trades para análisis agregado
+                    let allTrades = [];
+                    
+                    simulations.forEach((sim, index) => {
+                        if (sim.results && sim.results.statistics) {
+                            const stats = sim.results.statistics;
+                            
+                            totalWinningTrades += stats.winningTrades || 0;
+                            totalLosingTrades += stats.losingTrades || 0;
+                            totalProfitFactor += stats.profitFactor || 0;
+                            totalMathematicalExpectation += stats.mathematicalExpectation || 0;
+                            totalMaxDrawdown += stats.maxDrawdown || 0;
+                            totalSharpeRatio += stats.sharpeRatio || 0;
+                            totalActualWinRate += stats.actualWinRate || 0;
+                            
+                            // Recolectar trades para análisis agregado
+                            if (sim.results.trades) {
+                                allTrades = allTrades.concat(sim.results.trades);
+                            }
+                            
+                            validSimulations++;
+                        }
+                    });
+                    
+                    // 2. CALCULAR PROMEDIOS
+                    const avgWinningTrades = validSimulations > 0 ? totalWinningTrades / validSimulations : 0;
+                    const avgLosingTrades = validSimulations > 0 ? totalLosingTrades / validSimulations : 0;
+                    const avgProfitFactor = validSimulations > 0 ? totalProfitFactor / validSimulations : 0;
+                    const avgMathematicalExpectation = validSimulations > 0 ? totalMathematicalExpectation / validSimulations : 0;
+                    const avgMaxDrawdown = validSimulations > 0 ? totalMaxDrawdown / validSimulations : 0;
+                    const avgSharpeRatio = validSimulations > 0 ? totalSharpeRatio / validSimulations : 0;
+                    const avgActualWinRate = validSimulations > 0 ? totalActualWinRate / validSimulations : 0;
+                    
+                    // 3. CALCULAR MÉTRICAS AGREGADAS DE TODOS LOS TRADES
+                    let aggregateWinRate = 0;
+                    let aggregateProfitFactor = 0;
+                    let aggregateExpectation = 0;
+                    
+                    if (allTrades.length > 0) {
+                        const winningTradesAll = allTrades.filter(t => t.isWin);
+                        const losingTradesAll = allTrades.filter(t => !t.isWin);
+                        
+                        // Win Rate agregado
+                        aggregateWinRate = (winningTradesAll.length / allTrades.length) * 100;
+                        
+                        // Profit Factor agregado
+                        const totalWinAmountAll = winningTradesAll.reduce((sum, t) => sum + (t.result || 0), 0);
+                        const totalLossAmountAll = losingTradesAll.reduce((sum, t) => sum + Math.abs(t.result || 0), 0);
+                        aggregateProfitFactor = totalLossAmountAll > 0 ? totalWinAmountAll / totalLossAmountAll : totalWinAmountAll > 0 ? Infinity : 0;
+                        
+                        // Expectativa Matemática agregada
+                        aggregateExpectation = (totalWinAmountAll - totalLossAmountAll) / allTrades.length;
+                        
+                        console.log(`📊 Análisis agregado de ${allTrades.length} trades:`);
+                        console.log(`   - Win Rate: ${aggregateWinRate.toFixed(1)}%`);
+                        console.log(`   - Profit Factor: ${aggregateProfitFactor.toFixed(2)}`);
+                        console.log(`   - Expectativa: $${aggregateExpectation.toFixed(2)}`);
+                    }
+                    
+                    // 4. USAR MÉTRICAS AGREGADAS (preferiblemente) o promedios
+                    finalCapital = aggregatedStats.avgFinalCapital || 0;
+                    
+                    // ACTUALIZAR ESTADÍSTICAS DETALLADAS CON VALORES AGREGADOS
+                    document.getElementById('winningTrades').textContent = Math.round(avgWinningTrades).toLocaleString();
+                    document.getElementById('losingTrades').textContent = Math.round(avgLosingTrades).toLocaleString();
+                    document.getElementById('actualWinRate').textContent = aggregateWinRate > 0 ? 
+                        aggregateWinRate.toFixed(1) + '%' : avgActualWinRate.toFixed(1) + '%';
+                    document.getElementById('profitFactor').textContent = aggregateProfitFactor > 0 ? 
+                        aggregateProfitFactor.toFixed(2) : avgProfitFactor.toFixed(2);
+                    document.getElementById('mathematicalExpectation').textContent = 
+                        '$' + (aggregateExpectation !== 0 ? aggregateExpectation.toFixed(2) : avgMathematicalExpectation.toFixed(2));
+                    
+                    // Usar métricas agregadas de runMultipleSimulations (CORRECCIÓN 6/7)
+                    document.getElementById('maxDrawdownValue').textContent = 
+                        aggregatedStats.avgMaxDrawdown ? aggregatedStats.avgMaxDrawdown.toFixed(1) + '%' : avgMaxDrawdown.toFixed(1) + '%';
+                    
+                    document.getElementById('sharpeRatioValue').textContent = 
+                        aggregatedStats.avgSharpeRatio ? aggregatedStats.avgSharpeRatio.toFixed(2) : avgSharpeRatio.toFixed(2);
+                    
+                    // Usar probabilidad de ruina real (basada en ruinas reales)
+                    document.getElementById('ruinProbabilityValue').textContent = 
+                        aggregatedStats.actualRuinProbability ? 
+                        aggregatedStats.actualRuinProbability.toFixed(1) + '%' : '0%';
+                        
+                    document.getElementById('simulationsCount').textContent = 
+                        (aggregatedStats.totalSimulations || 0).toLocaleString();
+                        
+                } else {
+                    // ==============================================
+                    // SIMULACIÓN ÚNICA
+                    // ==============================================
+                    if (!results.results) {
+                        console.error("❌ ERROR: Simulación única sin results");
+                        return;
+                    }
+                    
+                    const tradesData = results.results;
+                    const stats = tradesData.statistics || {};
+                    
+                    finalCapital = tradesData.finalCapital || 0;
+                    initialCapital = results.parameters?.initialCapital || tradesData.initialCapital || 10000;
+                    
+                    // ACTUALIZAR ESTADÍSTICAS DETALLADAS
+                    document.getElementById('winningTrades').textContent = stats.winningTrades || 0;
+                    document.getElementById('losingTrades').textContent = stats.losingTrades || 0;
+                    document.getElementById('actualWinRate').textContent = 
+                        stats.actualWinRate ? stats.actualWinRate.toFixed(1) + '%' : '0%';
+                    document.getElementById('profitFactor').textContent = 
+                        (stats.profitFactor || 0).toFixed(2);
+                    document.getElementById('mathematicalExpectation').textContent = 
+                        '$' + (stats.mathematicalExpectation || 0).toFixed(2);
+                    
+                    // Métricas principales
+                    document.getElementById('maxDrawdownValue').textContent = 
+                        (stats.maxDrawdown || 0).toFixed(1) + '%';
+                    document.getElementById('sharpeRatioValue').textContent = 
+                        (stats.sharpeRatio || 0).toFixed(2);
+                    
+                    // Probabilidad de ruina
+                    const ruinProb = stats.ruinProbability || 
+                        (finalCapital < (initialCapital * 0.5) ? 100 : 0);
+                    document.getElementById('ruinProbabilityValue').textContent = 
+                        ruinProb.toFixed(1) + '%';
+                        
+                    document.getElementById('simulationsCount').textContent = '1';
+                }
+                
+                // ==============================================
+                // MÉTRICAS COMUNES (PARA AMBOS CASOS)
+                // ==============================================
+                
+                // 1. VERIFICAR VALORES VÁLIDOS
+                if (isNaN(finalCapital) || isNaN(initialCapital)) {
+                    console.error("❌ ERROR: Valores de capital no válidos");
+                    finalCapital = 0;
+                    initialCapital = 10000;
+                }
+                
+                // 2. CAPITAL FINAL
+                document.getElementById('finalCapitalValue').textContent = 
+                    '$' + finalCapital.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                
+                // 3. RETORNO PORCENTUAL
+                const returnPct = initialCapital > 0 ? 
+                    ((finalCapital - initialCapital) / initialCapital) * 100 : 0;
+                document.getElementById('returnPercentage').textContent = 
+                    returnPct.toFixed(1) + '%';
+                document.getElementById('returnPercentage').style.color = 
+                    returnPct >= 0 ? 'var(--neon-green)' : 'var(--neon-red)';
+                
+                // 4. ACTUALIZAR INFORMACIÓN GENERAL
+                document.getElementById('lastSimulation').textContent = 
+                    new Date().toLocaleTimeString();
+                
+                // 5. MOSTRAR PARÁMETROS ACTIVOS
+                const params = isMultiple ? results.baseParameters : results.parameters;
+                let paramSummary = '';
+                if (params) {
+                    paramSummary = `C: $${(params.initialCapital || 10000).toLocaleString()} | ` +
+                                  `R: ${((params.riskPerTrade || 0.02) * 100).toFixed(1)}% | ` +
+                                  `T: ${params.numTrades || 100}`;
+                    
+                    if (params.winRate) {
+                        paramSummary += ` | WR: ${(params.winRate * 100).toFixed(1)}%`;
+                    }
+                    if (params.riskReward) {
+                        paramSummary += ` | R:R: ${params.riskReward.toFixed(1)}`;
+                    }
+                }
+                
+                if (historicalStats) {
+                    paramSummary += ` | Hist: ${historicalStats.totalTrades || 0} trades`;
+                }
+                document.getElementById('activeParams').textContent = paramSummary;
+                
+                // 6. ACTUALIZAR DATOS GENERADOS
+                let dataCount = 0;
+                if (isMultiple) {
+                    dataCount = aggregatedStats.totalSimulations || 0;
+                } else if (results.results && results.results.trades) {
+                    dataCount = results.results.trades.length;
+                }
+                document.getElementById('generatedData').textContent = 
+                    dataCount + ' registros';
+                    
+                console.log("✅ UI actualizada correctamente");
+                console.log("📊 Resumen final:", {
+                    tipo: isMultiple ? "Múltiple" : "Única",
+                    capitalFinal: finalCapital,
+                    retorno: returnPct.toFixed(1) + '%',
+                    simulaciones: isMultiple ? aggregatedStats.totalSimulations : 1
+                });
+                
+            } catch (error) {
+                console.error("❌ Error en updateResultsUI:", error);
+                console.error("📋 Stack trace:", error.stack);
+                showNotification("Error actualizando resultados: " + error.message, "error");
+            }
+        }
+
+        // ===== EXPORTACIÓN =====
+        function exportData() {
+            if (!simulationResults) {
+                showNotification('No hay resultados para exportar', 'warning');
+                return;
+            }
+            
+            try {
+                let content, filename;
+                
+                switch(selectedFormat) {
+                    case 'json':
+                        content = JSON.stringify({
+                            parametricSimulation: simulationResults,
+                            historicalData: importedHistoricalData,
+                            historicalStats: historicalStats,
+                            metadata: {
+                                exportDate: new Date().toISOString(),
+                                program: 'Simulador Paramétrico v1.0'
+                            }
+                        }, null, 2);
+                        filename = `parametric_simulation_${new Date().toISOString().slice(0, 10)}.json`;
+                        break;
+                        
+                    case 'csv':
+                        content = convertToCSV(simulationResults);
+                        filename = `parametric_simulation_${new Date().toISOString().slice(0, 10)}.csv`;
+                        break;
+                        
+                    case 'summary':
+                        showNotification('Resumen PDF en desarrollo', 'info');
+                        return;
+                        
+                    case 'charts':
+                        exportChartsAsPNG();
+                        return;
+                        
+                    case 'next':
+                        exportForNextProgram();
+                        return;
+                        
+                    default:
+                        throw new Error('Formato no soportado');
+                }
+                
+                const blob = new Blob([content], { type: selectedFormat === 'json' ? 'application/json' : 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                showNotification(`Resultados exportados como ${selectedFormat.toUpperCase()}`, 'success');
+                
+            } catch (error) {
+                console.error('Error exportando:', error);
+                showNotification('Error exportando datos', 'error');
+            }
+        }
+
+        function exportAllData() {
+            // Exportar JSON y CSV
+            ['json', 'csv'].forEach(format => {
+                selectedFormat = format;
+                setTimeout(() => exportData(), 100);
+            });
+        }
+
+        function exportForNextProgram() {
+            if (!simulationResults) {
+                showNotification('No hay resultados para exportar', 'warning');
+                return;
+            }
+            
+            try {
+                const exportData = {
+                    parametricResults: simulationResults,
+                    summary: {
+                        finalCapital: simulationResults.multipleSimulations ? 
+                            simulationResults.aggregatedStats.avgFinalCapital : 
+                            simulationResults.results.finalCapital,
+                        maxDrawdown: simulationResults.multipleSimulations ? 
+                            simulationResults.simulations[0].results.statistics.maxDrawdown : 
+                            simulationResults.results.statistics.maxDrawdown,
+                        winRate: simulationResults.multipleSimulations ? 
+                            simulationResults.simulations[0].results.statistics.actualWinRate : 
+                            simulationResults.results.statistics.actualWinRate,
+                        profitFactor: simulationResults.multipleSimulations ? 
+                            simulationResults.simulations[0].results.statistics.profitFactor : 
+                            simulationResults.results.statistics.profitFactor
+                    },
+                    parameters: simulationResults.multipleSimulations ? 
+                        simulationResults.baseParameters : 
+                        simulationResults.parameters,
+                    metadata: {
+                        source: 'Simulador Paramétrico',
+                        exportDate: new Date().toISOString(),
+                        nextProgram: 'Monte Carlo o Risk Analysis',
+                        formatVersion: '1.0'
+                    }
+                };
+                
+                const content = JSON.stringify(exportData, null, 2);
+                const filename = `next_program_parametric_${new Date().toISOString().slice(0, 10)}.json`;
+                
+                const blob = new Blob([content], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                showNotification('Datos preparados para siguiente programa', 'success');
+                
+            } catch (error) {
+                console.error('Error exportando para siguiente programa:', error);
+                showNotification('Error exportando datos', 'error');
+            }
+        }
+
+        function convertToCSV(results) {
+            let content = 'Parameter,Value,Description\n';
+            
+            // Agregar parámetros
+            const params = results.multipleSimulations ? results.baseParameters : results.parameters;
+            Object.entries(params).forEach(([key, value]) => {
+                content += `${key},${value},Parámetro de simulación\n`;
+            });
+            
+            // Agregar resultados
+            if (results.multipleSimulations) {
+                content += `avgFinalCapital,${results.aggregatedStats.avgFinalCapital},Capital final promedio\n`;
+                content += `minFinalCapital,${results.aggregatedStats.minFinalCapital},Capital final mínimo\n`;
+                content += `maxFinalCapital,${results.aggregatedStats.maxFinalCapital},Capital final máximo\n`;
+                content += `ruinProbability,${(results.aggregatedStats.ruinCount/results.aggregatedStats.totalSimulations*100).toFixed(1)}%,Probabilidad de ruina\n`;
+            } else {
+                const stats = results.results.statistics;
+                content += `finalCapital,${results.results.finalCapital},Capital final\n`;
+                content += `totalReturn,${((results.results.finalCapital - params.initialCapital)/params.initialCapital*100).toFixed(1)}%,Retorno total\n`;
+                content += `winRate,${stats.actualWinRate.toFixed(1)}%,Win rate\n`;
+                content += `maxDrawdown,${stats.maxDrawdown.toFixed(1)}%,Máximo drawdown\n`;
+                content += `sharpeRatio,${stats.sharpeRatio.toFixed(2)},Sharpe ratio\n`;
+            }
+            
+            return content;
+        }
+
+        function exportChartsAsPNG() {
+            const charts = Object.values(currentCharts);
+            if (charts.length === 0) {
+                showNotification('No hay gráficas para exportar', 'warning');
+                return;
+            }
+            
+            charts.forEach((chart, index) => {
+                if (chart) {
+                    const link = document.createElement('a');
+                    link.download = `parametric_chart_${index + 1}_${new Date().toISOString().slice(0, 10)}.png`;
+                    link.href = chart.toBase64Image();
+                    link.click();
+                }
+            });
+            
+            showNotification(`${charts.length} gráficas exportadas como PNG`, 'success');
+        }
+
+        // ===== OPTIMIZACIÓN =====
+        function optimizeParameters() {
+            showNotification('Optimización de parámetros en desarrollo', 'info');
+            // Aquí se podría implementar una búsqueda de mejores parámetros
+        }
+
+        // ===== UTILITIES =====
+        function showNotification(message, type = 'info') {
+            // Primero, limpiar notificaciones antiguas si hay muchas
+            const oldNotifications = document.querySelectorAll('[data-notification]');
+            if (oldNotifications.length > 3) {
+                oldNotifications[0].remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.setAttribute('data-notification', 'true');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 4px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                border: 1px solid;
+                max-width: 400px;
+                word-wrap: break-word;
+                font-size: 14px;
+            `;
+            
+            const colors = {
+                success: { bg: 'rgba(0, 255, 136, 0.95)', border: 'rgba(0, 255, 136, 0.7)', icon: '✅' },
+                error: { bg: 'rgba(255, 85, 85, 0.95)', border: 'rgba(255, 85, 85, 0.7)', icon: '❌' },
+                warning: { bg: 'rgba(255, 193, 7, 0.95)', border: 'rgba(255, 193, 7, 0.7)', icon: '⚠️', color: '#000' },
+                info: { bg: 'rgba(0, 240, 255, 0.95)', border: 'rgba(0, 240, 255, 0.7)', icon: 'ℹ️' }
+            };
+            
+            const color = colors[type] || colors.info;
+            notification.style.background = color.bg;
+            notification.style.borderColor = color.border;
+            if (color.color) notification.style.color = color.color;
+            
+            notification.textContent = `${color.icon} ${message}`;
+            document.body.appendChild(notification);
+            
+            // Añadir animación CSS si no existe
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOut {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        function clearAllData() {
+            if (confirm('¿Estás seguro de que quieres eliminar todos los datos?')) {
+                simulationResults = null;
+                importedHistoricalData = null;
+                historicalStats = null;
+                multipleSimResults = [];
+                
+                Object.values(currentCharts).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+                currentCharts = {};
+                
+                // Resetear UI
+                document.getElementById('finalCapitalValue').textContent = '$0.00';
+                document.getElementById('returnPercentage').textContent = '0%';
+                document.getElementById('maxDrawdownValue').textContent = '0%';
+                document.getElementById('sharpeRatioValue').textContent = '0.00';
+                document.getElementById('ruinProbabilityValue').textContent = '0%';
+                document.getElementById('winningTrades').textContent = '0';
+                document.getElementById('losingTrades').textContent = '0';
+                document.getElementById('actualWinRate').textContent = '0%';
+                document.getElementById('profitFactor').textContent = '0.00';
+                document.getElementById('mathematicalExpectation').textContent = '$0.00';
+                
+                // Resetear estadísticas de importación
+                document.getElementById('fileName').textContent = 'Ninguno';
+                document.getElementById('fileType').textContent = 'N/A';
+                document.getElementById('recordCount').textContent = '0';
+                document.getElementById('importStatus').textContent = 'Pendiente';
+                document.getElementById('importStatus').style.color = 'var(--neon-yellow)';
+                
+                document.getElementById('simulationsCount').textContent = '0';
+                document.getElementById('lastSimulation').textContent = 'Nunca';
+                document.getElementById('activeParams').textContent = 'Default';
+                document.getElementById('generatedData').textContent = '0 registros';
+                
+                document.getElementById('runSimulationBtn').disabled = true;
+                document.getElementById('exportBtn').disabled = true;
+                document.getElementById('exportAllBtn').disabled = true;
+                document.getElementById('optimizeBtn').disabled = true;
+                
+                document.querySelectorAll('.chart-placeholder').forEach(p => p.classList.remove('hidden'));
+                document.querySelectorAll('canvas').forEach(c => c.classList.add('hidden'));
+                
+                localStorage.removeItem(STORAGE_KEY);
+                
+                showNotification('Todos los datos han sido eliminados', 'info');
+            }
+        }
+
+        // ===== LOCAL STORAGE =====
+        function saveToLocalStorage() {
+            try {
+                const data = {
+                    simulationResults,
+                    importedHistoricalData,
+                    historicalStats,
+                    settings: {
+                        initialCapital: document.getElementById('initialCapitalSlider').value,
+                        riskPerTrade: document.getElementById('riskPerTradeSlider').value,
+                        numTrades: document.getElementById('numTradesSlider').value,
+                        winRate: document.getElementById('winRateSlider').value,
+                        riskReward: document.getElementById('riskRewardSlider').value,
+                        currentScenario,
+                        multipleSims: document.getElementById('multipleSimsToggle').checked,
+                        numSimulations: document.getElementById('numSimulations').value
+                    },
+                    savedAt: new Date().toISOString()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (error) {
+                console.warn('Error guardando datos:', error);
+            }
+        }
+
+        function loadSavedData() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    simulationResults = data.simulationResults;
+                    importedHistoricalData = data.importedHistoricalData;
+                    historicalStats = data.historicalStats;
+                    
+                    if (data.settings) {
+                        // Restaurar configuración
+                        document.getElementById('initialCapitalSlider').value = data.settings.initialCapital || 10000;
+                        document.getElementById('initialCapitalValue').textContent = '$' + (data.settings.initialCapital || 10000).toLocaleString();
+                        
+                        document.getElementById('riskPerTradeSlider').value = data.settings.riskPerTrade || 2;
+                        document.getElementById('riskPerTradeValue').textContent = (data.settings.riskPerTrade || 2).toFixed(1) + '%';
+                        
+                        document.getElementById('numTradesSlider').value = data.settings.numTrades || 100;
+                        document.getElementById('numTradesValue').textContent = (data.settings.numTrades || 100).toLocaleString();
+                        
+                        document.getElementById('winRateSlider').value = data.settings.winRate || 55;
+                        document.getElementById('winRateValue').textContent = (data.settings.winRate || 55) + '%';
+                        
+                        document.getElementById('riskRewardSlider').value = data.settings.riskReward || 2;
+                        const rrValue = parseFloat(data.settings.riskReward || 2);
+                        document.getElementById('riskRewardValue').textContent = rrValue < 1 ? 
+                            `${rrValue.toFixed(1)}:1` : `1:${rrValue.toFixed(1)}`;
+                        
+                        currentScenario = data.settings.currentScenario || 'normal';
+                        document.querySelector(`[data-scenario="${currentScenario}"]`).click();
+                        
+                        document.getElementById('multipleSimsToggle').checked = data.settings.multipleSims || false;
+                        document.getElementById('numSimulations').value = data.settings.numSimulations || 100;
+                        document.getElementById('simCountRow').style.display = (data.settings.multipleSims || false) ? 'flex' : 'none';
+                    }
+                    
+                    if (simulationResults) {
+                        updateResultsUI(simulationResults);
+                        enableExportButtons();
+                        setTimeout(() => generateAllCharts(), 500);
+                    }
+                    
+                    showNotification('Datos cargados desde almacenamiento local', 'info');
+                }
+            } catch (error) {
+                console.warn('Error cargando datos:', error);
+            }
+        }
+
+        // ===== FUNCIONES DE HABILITACIÓN =====
+        function enableSimulationButton() {
+            if (importedHistoricalData || historicalStats) {
+                document.getElementById('runSimulationBtn').disabled = false;
+            }
+        }
+
+        function enableExportButtons() {
+            if (simulationResults) {
+                document.getElementById('exportBtn').disabled = false;
+                document.getElementById('exportAllBtn').disabled = false;
+                document.getElementById('optimizeBtn').disabled = false;
+            }
+        }
+
+        // ===== MANEJO DE REDIMENSIÓN DE VENTANA =====
+        window.addEventListener('resize', function() {
+            if (simulationResults) {
+                // Esperar un poco para que termine el redimensionamiento
+                setTimeout(() => {
+                    Object.keys(currentCharts).forEach(chartType => {
+                        const chart = currentCharts[chartType];
+                        if (chart) {
+                            const chartId = chartType + 'Chart';
+                            resizeChartCanvas(chartId);
+                            chart.resize();
+                            chart.update();
+                        }
+                    });
+                }, 300);
+            }
+        });
+    </script>
+</body>
+</html>

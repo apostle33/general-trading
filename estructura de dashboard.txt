@@ -1,0 +1,151 @@
+estructura del proyecto con los 9 programas numerados del 1 al 9 y sus funciones                                        1. Gestión de Trades
+    1.1 Entrada de Datos (Formulario)
+        1.1.1 Campos del Trade
+            1.1.1.1 Fecha de Entrada
+            1.1.1.2 Fecha de Salida
+            1.1.1.3 Instrumento
+            1.1.1.4 Setup / Estrategia
+            1.1.1.5 Temporalidad
+            1.1.1.6 Dirección (Buy/Sell)
+            1.1.1.7 Precio Entrada
+            1.1.1.8 Precio Salida
+            1.1.1.9 SL
+            1.1.1.10 TP
+            1.1.1.11 Tamaño
+            1.1.1.12 Comisión
+            1.1.1.13 PnL
+            1.1.1.14 PnL (R)
+            1.1.1.15 Comentarios
+        1.1.2 Acciones del Formulario
+            1.1.2.1 Agregar Trade
+            1.1.2.2 Editar Trade
+            1.1.2.3 Resetear Formulario
+            1.1.2.4 Validaciones
+
+    1.2 Tabla de Trades
+        1.2.1 Operaciones en la Tabla
+            1.2.1.1 Editar (botón ✎)
+            1.2.1.2 Eliminar (🗑)
+            1.2.1.3 Duplicar Trade
+        1.2.2 Visualización
+            1.2.2.1 Ordenar Columnas
+            1.2.2.2 Buscador en Tiempo Real
+            1.2.2.3 Filtros Rápidos
+                1.2.2.3.1 Filtro por Instrumento
+                1.2.2.3.2 Filtro por Temporalidad
+                1.2.2.3.3 Filtro por Dirección
+                1.2.2.3.4 Filtro por Ganadores/Perdedores
+            1.2.2.4 Contador de resultados filtrados
+            1.2.2.5 Scroll avanzado y vista compacta
+        1.2.3 Exportación/Importación
+            1.2.3.1 Exportar CSV
+            1.2.3.2 Exportar JSON
+            1.2.3.3 Importar JSON (sin refrescar)
+            1.2.3.4 Importar desde Excel (opcional)
+        1.2.4 Opciones Avanzadas
+            1.2.4.1 Vista Expandida / Vista Resumida
+            1.2.4.2 Selección múltiple + borrar en lote
+
+2. Métricas Básicas
+    2.1 Totales
+        2.1.1 Número de Trades
+        2.1.2 Winrate
+        2.1.3 Profit Factor
+    2.2 Rendimiento
+        2.2.1 Expectancy (R)
+        2.2.2 Payoff Ratio
+        2.2.3 Avg Win / Avg Loss
+    2.3 Operaciones Extremas
+        2.3.1 Mejor Trade (R)
+        2.3.2 Peor Trade (R)
+    2.4 Gestión del Riesgo
+        2.4.1 Max Drawdown
+        2.4.2 Racha Máxima de Wins
+        2.4.3 Racha Máxima de Losses
+
+3. Métricas Avanzadas
+    3.1 Indicadores de Performance
+        3.1.1 Sharpe Ratio
+        3.1.2 Sortino Ratio
+        3.1.3 Calmar Ratio
+        3.1.4 SQN (System Quality Number)
+    3.2 Métricas Profundas (opcional)
+        3.2.1 Ulcer Index
+        3.2.2 Kelly Criterion
+        3.2.3 Probabilidad de Ruina
+        3.2.4 Volatilidad del sistema
+
+4. Gráficas
+    4.1 Gráficas Principales
+        4.1.1 Equity Curve
+        4.1.2 Drawdown Curve
+        4.1.3 Histograma de PnL (R)
+    4.2 Gráficas Avanzadas (a futuro)
+        4.2.1 Scatter Plot (performance)
+        4.2.2 Heatmap semanales / horarios
+        4.2.3 Rolling Sharpe
+        4.2.4 Rolling Drawdown
+
+5. Montecarlo
+    5.1 Configuración
+        5.1.1 Número de Simulaciones
+        5.1.2 Usar R o PnL
+    5.2 Resultados
+        5.2.1 Percentil 5
+        5.2.2 Percentil 50 (mediana)
+        5.2.3 Percentil 95
+    5.3 Visualización
+        5.3.1 Curvas múltiples
+        5.3.2 Gráfico overlay
+    5.4 Montecarlo Avanzado (futuro)
+        5.4.1 Clusters de rachas
+        5.4.2 Montecarlo con Kelly
+        5.4.3 Distribución final del capital
+
+6. Simulador Paramétrico
+    6.1 Parámetros
+        6.1.1 Capital Inicial
+        6.1.2 Riesgo por Trade
+        6.1.3 Número de Trades
+    6.2 Resultados
+        6.2.1 Curva simulada
+        6.2.2 Capital final
+    6.3 Opciones Avanzadas
+        6.3.1 Múltiples escenarios (optimista/normal/pesimista)
+        6.3.2 Simulaciones múltiples
+        6.3.3 Histogramas de resultados
+
+7. Gestión de Cuenta
+    7.1 Panel General
+        7.1.1 Capital actual
+        7.1.2 Riesgo actual
+        7.1.3 Probabilidad de ruina
+        7.1.4 Tamaño recomendado
+    7.2 Cálculo Avanzado (futuro)
+        7.2.1 Kelly
+        7.2.2 Riesgo dinámico basado en drawdown
+        7.2.3 Ajuste según volatilidad del sistema
+
+8. Calculadora de Riesgo
+    8.1 Entrada
+        8.1.1 Capital
+        8.1.2 % Riesgo
+        8.1.3 SL en Puntos
+    8.2 Resultados
+        8.2.1 Riesgo monetario
+        8.2.2 Tamaño recomendado
+    8.3 Extensiones
+        8.3.1 Valor del pip
+        8.3.2 Spread
+        8.3.3 Comisión dinámica
+
+9. Exportador de Reportes
+    9.1 Tipos de Reporte
+        9.1.1 CSV
+        9.1.2 JSON
+        9.1.3 PDF (futuro)
+    9.2 Contenido
+        9.2.1 Tabla de trades completa
+        9.2.2 Métricas básicas
+        9.2.3 Métricas avanzadas
+        9.2.4 Gráficas principales

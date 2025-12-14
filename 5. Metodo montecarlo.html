@@ -1,0 +1,2891 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADING ANALYTICS | Simulación Monte Carlo</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Simple Statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <style>
+        /* ===== ESTILOS CYBERPUNK ===== */
+        :root {
+            --bg-1: #06060a;
+            --bg-2: #0b0011;
+            --neon-cyan: #00f0ff;
+            --neon-blue: #6f5cff;
+            --neon-magenta: #ff4cff;
+            --neon-green: #00ff88;
+            --neon-red: #ff5555;
+            --neon-yellow: #ffff00;
+            --neon-orange: #ff8c00;
+            --neon-purple: #a855f7;
+            --muted: rgba(230, 238, 248, 0.55);
+            --card-bg: rgba(20, 20, 40, 0.85);
+            --glow-cyan: 0 0 10px rgba(0, 240, 255, 0.5);
+            --glow-green: 0 0 10px rgba(0, 255, 136, 0.5);
+            --glow-red: 0 0 10px rgba(255, 85, 85, 0.5);
+            --glow-yellow: 0 0 10px rgba(255, 255, 0, 0.5);
+            --radius: 8px;
+            --border-thin: 1px solid rgba(0, 240, 255, 0.2);
+            font-family: 'Segoe UI', 'Courier New', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-1);
+            color: #dfefff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.03) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 255, 0.03) 0%, transparent 20%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .app-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            border-bottom: var(--border-thin);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            animation: scanline 3s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: var(--glow-cyan);
+            letter-spacing: 1px;
+        }
+
+        .system-info {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+        }
+
+        .info-badge {
+            background: rgba(0, 240, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: var(--border-thin);
+        }
+
+        /* MAIN LAYOUT */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .section-title {
+            color: var(--neon-cyan);
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: var(--border-thin);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* IMPORT PANEL */
+        .import-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .file-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .file-type-btn {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            height: 70px;
+        }
+
+        .file-type-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            transform: translateY(-2px);
+        }
+
+        .file-type-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .file-type-icon {
+            font-size: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue));
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(90deg, var(--neon-green), rgba(0, 255, 136, 0.7));
+            color: #000;
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, var(--neon-red), rgba(255, 85, 85, 0.7));
+            color: #000;
+        }
+
+        .btn-warning {
+            background: linear-gradient(90deg, var(--neon-yellow), rgba(255, 255, 0, 0.7));
+            color: #000;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* DATA STATS */
+        .data-stats {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.05);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat-value {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* CONFIGURATION PANEL - REORGANIZADO */
+        .config-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+            overflow: visible;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .config-label {
+            color: var(--muted);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .config-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            padding: 10px;
+            color: var(--neon-cyan);
+            font-family: inherit;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* SIMULATION CONTROLS */
+        .sim-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        /* RESULTS PANEL - REORGANIZADO */
+        .results-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+            overflow: visible;
+        }
+
+        .percentiles-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1400px) {
+            .percentiles-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .percentiles-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .percentile-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            text-align: center;
+            transition: all 0.3s;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .percentile-card:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .percentile-title {
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .percentile-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .percentile-subtext {
+            font-size: 10px;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* CHARTS SECTION */
+        .charts-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .chart-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: var(--border-thin);
+            flex-wrap: wrap;
+        }
+
+        .chart-tab {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .chart-tab:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .chart-tab.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .chart-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .chart-wrapper {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            height: 400px;
+            overflow: hidden;
+        }
+
+        .chart-title {
+            color: var(--neon-cyan);
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* EXPORT PANEL */
+        .export-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .export-formats {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .format-btn {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .format-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+        }
+
+        .format-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* SWITCH TOGGLE */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--neon-cyan);
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* SLIDER - MEJORADO */
+        .slider-container {
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .slider-with-value {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .slider-value {
+            min-width: 60px;
+            text-align: center;
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: 14px;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            outline: none;
+            margin: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        /* UTILITIES */
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--neon-cyan), var(--neon-magenta));
+            border-radius: 3px;
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* PROGRESS BAR */
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green));
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+
+        /* ADVANCED OPTIONS - MEJORADO */
+        .advanced-options {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: var(--border-thin);
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+
+        .option-label {
+            font-size: 12px;
+            color: var(--muted);
+            flex: 1;
+            margin-right: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* DATA TYPE SELECTOR - MEJORADO */
+        .data-type-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .data-type-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .data-type-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .data-type-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* INPUT GROUP - MEJORADO */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .input-row label {
+            min-width: 120px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .input-row input[type="number"] {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* RESULTS STATS - MEJORADO */
+        .results-stats {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            margin-top: 15px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            padding: 10px;
+            border: 1px solid rgba(0, 240, 255, 0.05);
+        }
+
+        .stat-card-label {
+            color: var(--muted);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+        }
+
+        .stat-card-value {
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* RESPONSIVE ADJUSTMENTS */
+        @media (max-width: 1400px) {
+            .sidebar {
+                max-height: none;
+                overflow-y: visible;
+            }
+            
+            .percentile-value {
+                font-size: 18px;
+            }
+            
+            .chart-tab {
+                font-size: 11px;
+                padding: 6px 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .percentiles-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .input-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .input-row label {
+                min-width: auto;
+                width: 100%;
+            }
+            
+            .input-row input[type="number"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div style="width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(45deg, var(--neon-cyan), var(--neon-magenta));"></div>
+                <div>
+                    <h1>TRADING ANALYTICS | MONTE CARLO</h1>
+                    <div style="font-size: 12px; color: var(--muted);">Simulación de Riesgos y Probabilidades</div>
+                </div>
+            </div>
+            <div class="system-info">
+                <div class="info-badge">
+                    <span>🎲 Simulaciones: </span>
+                    <strong id="simulationsCount">0</strong>
+                </div>
+                <div class="info-badge">
+                    <span>📊 Trades Base: </span>
+                    <strong id="baseTradesCount">0</strong>
+                </div>
+                <div class="info-badge">
+                    <span>⚡ Status: </span>
+                    <strong id="systemStatus" style="color: var(--neon-yellow);">Esperando datos</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar - REORGANIZADO -->
+            <div class="sidebar">
+                <!-- Import Section -->
+                <div class="import-panel">
+                    <div class="section-title">
+                        <span>📤</span> IMPORTAR DATOS
+                    </div>
+                    
+                    <div class="file-types">
+                        <div class="file-type-btn active" data-type="json" id="jsonBtn">
+                            <div class="file-type-icon">📊</div>
+                            <div>JSON</div>
+                            <input type="file" id="jsonInput" class="file-input" accept=".json">
+                        </div>
+                        <div class="file-type-btn" data-type="csv" id="csvBtn">
+                            <div class="file-type-icon">📄</div>
+                            <div>CSV</div>
+                            <input type="file" id="csvInput" class="file-input" accept=".csv,.txt">
+                        </div>
+                        <div class="file-type-btn" data-type="txt" id="txtBtn">
+                            <div class="file-type-icon">📝</div>
+                            <div>TXT</div>
+                            <input type="file" id="txtInput" class="file-input" accept=".txt">
+                        </div>
+                        <div class="file-type-btn" data-type="excel" id="excelBtn">
+                            <div class="file-type-icon">📈</div>
+                            <div>Excel</div>
+                            <input type="file" id="excelInput" class="file-input" accept=".xlsx,.xls">
+                        </div>
+                    </div>
+
+                    <div class="data-stats" id="importStats">
+                        <div class="stat-item">
+                            <span class="stat-label">Archivo:</span>
+                            <span class="stat-value" id="fileName">Ninguno</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Tipo:</span>
+                            <span class="stat-value" id="fileType">N/A</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Registros:</span>
+                            <span class="stat-value" id="recordCount">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Estado:</span>
+                            <span class="stat-value" id="importStatus" style="color: var(--neon-yellow);">Pendiente</span>
+                        </div>
+                    </div>
+
+                    <div class="progress-container hidden" id="importProgress">
+                        <div class="progress-bar" id="importProgressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- 5.1 Configuración Monte Carlo - REORGANIZADO -->
+                <div class="config-panel">
+                    <div class="section-title">
+                        <span>⚙️</span> 5.1 CONFIGURACIÓN MONTE CARLO
+                    </div>
+                    
+                    <div class="config-grid">
+                        <!-- 5.1.1 Número de Simulaciones -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>🎲</span> 5.1.1 Número de Simulaciones
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="simulationsSlider" min="100" max="10000" value="1000" step="100" class="config-input">
+                                <div class="slider-value" id="simulationsValue">1,000</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 5.1.2 Usar R o PnL -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>📈</span> 5.1.2 Tipo de Datos
+                            </div>
+                            <div class="data-type-selector">
+                                <button class="data-type-btn active" id="usePnLBtn" data-type="pnl">
+                                    <span>💰</span> PnL
+                                </button>
+                                <button class="data-type-btn" id="useRBtn" data-type="r">
+                                    <span>🎯</span> R-Multiple
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Trades por Simulación -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>📊</span> Trades por Simulación
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="tradesPerSimSlider" min="10" max="1000" value="100" step="10" class="config-input">
+                                <div class="slider-value" id="tradesPerSimValue">100</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Capital Inicial -->
+                        <div class="input-group">
+                            <div class="input-row">
+                                <label for="initialCapital">
+                                    <span>💼</span> Capital Inicial ($)
+                                </label>
+                                <input type="number" id="initialCapital" class="config-input" value="10000" min="100" step="100">
+                            </div>
+                        </div>
+
+                        <!-- Advanced Options -->
+                        <div class="advanced-options">
+                            <div class="config-label" style="margin-bottom: 10px;">
+                                <span>⚡</span> OPCIONES AVANZADAS
+                            </div>
+                            
+                            <div class="option-row">
+                                <span class="option-label">Mantener secuencia de rachas</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="keepStreaksToggle">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="option-row">
+                                <span class="option-label">Auto-iniciar simulación</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="autoStartToggle">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Simulation Controls -->
+                        <div class="sim-controls">
+                            <button class="btn btn-success" id="runSimulationBtn" disabled>
+                                <span>🚀</span> Ejecutar Simulación
+                            </button>
+                            <button class="btn btn-danger" id="clearDataBtn">
+                                <span>🗑️</span> Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5.2 Resultados - REORGANIZADO -->
+                <div class="results-panel">
+                    <div class="section-title">
+                        <span>📊</span> 5.2 RESULTADOS
+                    </div>
+                    
+                    <!-- Percentiles Grid -->
+                    <div class="percentiles-grid">
+                        <div class="percentile-card">
+                            <div class="percentile-title">5.2.1 Percentil 5</div>
+                            <div class="percentile-value" id="percentile5" style="color: var(--neon-red);">$0.00</div>
+                            <div class="percentile-subtext">Escenario pesimista</div>
+                        </div>
+                        
+                        <div class="percentile-card">
+                            <div class="percentile-title">5.2.2 Percentil 50</div>
+                            <div class="percentile-value" id="percentile50" style="color: var(--neon-yellow);">$0.00</div>
+                            <div class="percentile-subtext">Escenario esperado</div>
+                        </div>
+                        
+                        <div class="percentile-card">
+                            <div class="percentile-title">5.2.3 Percentil 95</div>
+                            <div class="percentile-value" id="percentile95" style="color: var(--neon-green);">$0.00</div>
+                            <div class="percentile-subtext">Escenario optimista</div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Statistics -->
+                    <div class="results-stats">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-card-label">Capital Final Min</div>
+                                <div class="stat-card-value" id="finalCapitalMin">$0.00</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-label">Capital Final Max</div>
+                                <div class="stat-card-value" id="finalCapitalMax">$0.00</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-label">Prob. Ruina</div>
+                                <div class="stat-card-value" id="ruinProbability">0.0%</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-card-label">Tiempo Ejecución</div>
+                                <div class="stat-card-value" id="executionTime">0ms</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Charts Section -->
+                <div class="charts-section">
+                    <div class="section-title">
+                        <span>📈</span> 5.3 VISUALIZACIÓN
+                    </div>
+                    
+                    <!-- Chart Tabs -->
+                    <div class="chart-tabs" id="chartTabs">
+                        <div class="chart-tab active" data-chart="curves">5.3.1 Curvas Múltiples</div>
+                        <div class="chart-tab" data-chart="overlay">5.3.2 Gráfico Overlay</div>
+                        <div class="chart-tab" data-chart="distribution">5.4.3 Distribución Final</div>
+                        <div class="chart-tab" data-chart="clusters">5.4.1 Clusters de Rachas</div>
+                        <div class="chart-tab" data-chart="kelly">5.4.2 Montecarlo con Kelly</div>
+                    </div>
+                    
+                    <!-- Chart Containers -->
+                    <div class="chart-container">
+                        <!-- Multiple Curves -->
+                        <div class="chart-wrapper" id="curvesChartWrapper">
+                            <div class="chart-title">
+                                <span>📊</span> 5.3.1 CURVAS DE SIMULACIÓN MÚLTIPLES
+                            </div>
+                            <div class="chart-placeholder" id="curvesPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-cyan); opacity: 0.3;">🎲</div>
+                                <div style="color: var(--muted); max-width: 300px;">
+                                    <strong>Ejecuta una simulación para ver resultados</strong><br>
+                                    <small>Importa datos y haz clic en "Ejecutar Simulación"</small>
+                                </div>
+                            </div>
+                            <canvas id="curvesChart" class="hidden"></canvas>
+                        </div>
+                        
+                        <!-- Overlay Chart -->
+                        <div class="chart-wrapper" id="overlayChartWrapper">
+                            <div class="chart-title">
+                                <span>📈</span> 5.3.2 GRÁFICO OVERLAY CON PERCENTILES
+                            </div>
+                            <div class="chart-placeholder" id="overlayPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-green); opacity: 0.3;">📊</div>
+                                <div>Gráfico overlay se generará aquí</div>
+                            </div>
+                            <canvas id="overlayChart" class="hidden"></canvas>
+                        </div>
+                        
+                        <!-- Final Distribution -->
+                        <div class="chart-wrapper" id="distributionChartWrapper">
+                            <div class="chart-title">
+                                <span>📊</span> 5.4.3 DISTRIBUCIÓN FINAL DEL CAPITAL
+                            </div>
+                            <div class="chart-placeholder" id="distributionPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-purple); opacity: 0.3;">📊</div>
+                                <div>Distribución se generará aquí</div>
+                            </div>
+                            <canvas id="distributionChart" class="hidden"></canvas>
+                        </div>
+
+                        <!-- Clusters and Kelly Row -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <!-- Clusters Chart -->
+                            <div class="chart-wrapper" id="clustersChartWrapper">
+                                <div class="chart-title">
+                                    <span>🎯</span> 5.4.1 CLUSTERS DE RACHAS
+                                </div>
+                                <div class="chart-placeholder" id="clustersPlaceholder">
+                                    <div style="font-size: 48px; color: var(--neon-orange); opacity: 0.3;">📊</div>
+                                    <div>Clusters se generarán aquí</div>
+                                </div>
+                                <canvas id="clustersChart" class="hidden"></canvas>
+                            </div>
+                            
+                            <!-- Kelly Chart -->
+                            <div class="chart-wrapper" id="kellyChartWrapper">
+                                <div class="chart-title">
+                                    <span>💰</span> 5.4.2 MONTECARLO CON KELLY
+                                </div>
+                                <div class="chart-placeholder" id="kellyPlaceholder">
+                                    <div style="font-size: 48px; color: var(--neon-blue); opacity: 0.3;">📊</div>
+                                    <div>Análisis Kelly se generará aquí</div>
+                                </div>
+                                <canvas id="kellyChart" class="hidden"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Panel -->
+                <div class="export-panel">
+                    <div class="section-title">
+                        <span>📤</span> EXPORTAR RESULTADOS
+                    </div>
+                    
+                    <div class="export-formats">
+                        <button class="format-btn" data-format="json">
+                            <span>📊</span> JSON
+                        </button>
+                        <button class="format-btn" data-format="csv">
+                            <span>📄</span> CSV
+                        </button>
+                        <button class="format-btn" data-format="pdf">
+                            <span>📘</span> PDF Report
+                        </button>
+                        <button class="format-btn" data-format="png">
+                            <span>🖼️</span> PNG Charts
+                        </button>
+                        <button class="format-btn" data-format="excel">
+                            <span>📈</span> Excel
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-primary" id="exportBtn" disabled>
+                            <span>💾</span> Exportar Seleccionado
+                        </button>
+                        <button class="btn btn-secondary" id="exportAllBtn" disabled>
+                            <span>🚀</span> Exportar Todo
+                        </button>
+                        <button class="btn btn-warning" id="exportForNextBtn" disabled>
+                            <span>➡️</span> Para Siguiente Programa
+                        </button>
+                    </div>
+
+                    <div class="data-stats" style="margin-top: 15px;">
+                        <div class="stat-item">
+                            <span class="stat-label">Última simulación:</span>
+                            <span class="stat-value" id="lastSimulation">Nunca</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Formato actual:</span>
+                            <span class="stat-value" id="currentFormat">Ninguno</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Tamaño datos:</span>
+                            <span class="stat-value" id="dataSize">0 KB</span>
+                        </div>
+                    </div>
+
+                    <div class="progress-container hidden" id="exportProgress">
+                        <div class="progress-bar" id="exportProgressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Advanced Monte Carlo Section -->
+                <div class="charts-section">
+                    <div class="section-title">
+                        <span>🚀</span> 5.4 MONTECARLO AVANZADO
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px;">
+                        <div class="percentile-card">
+                            <div class="percentile-title">🎯 5.4.1 CLUSTERS DE RACHAS</div>
+                            <div class="percentile-value" style="color: var(--neon-orange);">ACTIVO</div>
+                            <div class="percentile-subtext">Análisis de secuencias de trades</div>
+                        </div>
+                        
+                        <div class="percentile-card">
+                            <div class="percentile-title">💰 5.4.2 MONTECARLO CON KELLY</div>
+                            <div class="percentile-value" style="color: var(--neon-blue);">ACTIVO</div>
+                            <div class="percentile-subtext">Optimización de posición con Kelly</div>
+                        </div>
+                        
+                        <div class="percentile-card">
+                            <div class="percentile-title">📊 5.4.3 DISTRIBUCIÓN FINAL</div>
+                            <div class="percentile-value" style="color: var(--neon-purple);">ACTIVO</div>
+                            <div class="percentile-subtext">Distribución probabilística</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; padding: 15px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius); border: var(--border-thin);">
+                        <div style="color: var(--muted); font-size: 12px; line-height: 1.5;">
+                            <strong>✅ TODAS LAS FUNCIONES AVANZADAS ACTIVADAS</strong><br>
+                            • <strong>Clusters de Rachas</strong>: Análisis de secuencias consecutivas<br>
+                            • <strong>Montecarlo con Kelly</strong>: Optimización de tamaño de posición<br>
+                            • <strong>Distribución Final</strong>: Histograma de resultados probabilísticos
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONFIGURACIÓN =====
+        const STORAGE_KEY = 'monte_carlo_v1';
+        const MAX_SIMULATIONS = 10000;
+        const MIN_SIMULATIONS = 100;
+        
+        // ===== VARIABLES GLOBALES =====
+        let importedData = null;
+        let simulationResults = null;
+        let currentCharts = {};
+        let selectedFormat = 'json';
+        let dataType = 'pnl'; // 'pnl' o 'r'
+        let isSimulationRunning = false;
+
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('MONTE CARLO SIMULATOR - Sistema iniciado');
+            
+            // Cargar datos guardados
+            loadSavedData();
+            
+            // Configurar event listeners
+            setupEventListeners();
+            
+            // Configurar UI inicial
+            setupInitialUI();
+            
+            // Configurar sliders
+            setupSliders();
+        });
+
+        // ===== CONFIGURACIÓN DE UI =====
+        function setupInitialUI() {
+            // Configurar file type buttons
+            document.querySelectorAll('.file-type-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        document.querySelectorAll('.file-type-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        const fileType = this.dataset.type;
+                        document.getElementById(`${fileType}Input`).click();
+                    }
+                });
+            });
+            
+            // Configurar format buttons
+            document.querySelectorAll('.format-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    selectedFormat = this.dataset.format;
+                    document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById('currentFormat').textContent = selectedFormat.toUpperCase();
+                });
+            });
+            
+            // Configurar chart tabs
+            document.querySelectorAll('.chart-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const chartType = this.dataset.chart;
+                    showChart(chartType);
+                    
+                    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Configurar botones de tipo de datos
+            document.getElementById('usePnLBtn').addEventListener('click', function() {
+                dataType = 'pnl';
+                document.querySelectorAll('.data-type-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                updateUIForDataType();
+            });
+            
+            document.getElementById('useRBtn').addEventListener('click', function() {
+                dataType = 'r';
+                document.querySelectorAll('.data-type-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                updateUIForDataType();
+            });
+            
+            // Inicializar con PnL
+            document.getElementById('usePnLBtn').click();
+        }
+
+        function setupSliders() {
+            // Slider de simulaciones
+            const simSlider = document.getElementById('simulationsSlider');
+            const simValue = document.getElementById('simulationsValue');
+            
+            simSlider.addEventListener('input', function() {
+                simValue.textContent = parseInt(this.value).toLocaleString();
+            });
+            
+            // Slider de trades por simulación
+            const tradesSlider = document.getElementById('tradesPerSimSlider');
+            const tradesValue = document.getElementById('tradesPerSimValue');
+            
+            tradesSlider.addEventListener('input', function() {
+                tradesValue.textContent = parseInt(this.value).toLocaleString();
+            });
+        }
+
+        function setupEventListeners() {
+            // Input files para cada tipo
+            document.getElementById('jsonInput').addEventListener('change', (e) => handleFileImport(e, 'json'));
+            document.getElementById('csvInput').addEventListener('change', (e) => handleFileImport(e, 'csv'));
+            document.getElementById('txtInput').addEventListener('change', (e) => handleFileImport(e, 'txt'));
+            document.getElementById('excelInput').addEventListener('change', (e) => handleFileImport(e, 'excel'));
+            
+            // Botón ejecutar simulación
+            document.getElementById('runSimulationBtn').addEventListener('click', runMonteCarloSimulation);
+            
+            // Botón limpiar
+            document.getElementById('clearDataBtn').addEventListener('click', clearAllData);
+            
+            // Botón exportar
+            document.getElementById('exportBtn').addEventListener('click', exportData);
+            
+            // Botón exportar todo
+            document.getElementById('exportAllBtn').addEventListener('click', exportAllData);
+            
+            // Botón exportar para siguiente programa
+            document.getElementById('exportForNextBtn').addEventListener('click', exportForNextProgram);
+            
+            // Toggles
+            document.getElementById('keepStreaksToggle').addEventListener('change', toggleKeepStreaks);
+            document.getElementById('autoStartToggle').addEventListener('change', toggleAutoStart);
+        }
+
+        // ===== FUNCIONES DE IMPORTACIÓN =====
+        function handleFileImport(event, fileType) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('importProgress').classList.remove('hidden');
+            document.getElementById('importProgressBar').style.width = '10%';
+            
+            document.querySelectorAll('.file-type-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`${fileType}Btn`).classList.add('active');
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    let data;
+                    
+                    document.getElementById('importProgressBar').style.width = '30%';
+                    
+                    switch(fileType) {
+                        case 'json':
+                            data = importJSON(content, file.name);
+                            break;
+                        case 'csv':
+                            data = importCSV(content, file.name);
+                            break;
+                        case 'txt':
+                            data = importTXT(content, file.name);
+                            break;
+                        case 'excel':
+                            data = importExcel(content, file.name);
+                            break;
+                        default:
+                            throw new Error('Tipo de archivo no soportado');
+                    }
+                    
+                    document.getElementById('importProgressBar').style.width = '70%';
+                    
+                    importedData = data;
+                    updateImportStats(file, data);
+                    enableSimulationButton();
+                    saveToLocalStorage();
+                    
+                    document.getElementById('importProgressBar').style.width = '100%';
+                    
+                    if (document.getElementById('autoStartToggle').checked) {
+                        setTimeout(() => {
+                            runMonteCarloSimulation();
+                        }, 500);
+                    }
+                    
+                    setTimeout(() => {
+                        document.getElementById('importProgress').classList.add('hidden');
+                        document.getElementById('importProgressBar').style.width = '0%';
+                    }, 1000);
+                    
+                    showNotification(`Archivo ${file.name} importado exitosamente`, 'success');
+                    
+                } catch (error) {
+                    console.error('Error importando archivo:', error);
+                    document.getElementById('importProgress').classList.add('hidden');
+                    showNotification('Error importando archivo: ' + error.message, 'error');
+                }
+            };
+            
+            if (fileType === 'excel') {
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsText(file);
+            }
+            
+            event.target.value = '';
+        }
+
+        function importJSON(content, filename) {
+            try {
+                const data = JSON.parse(content);
+                
+                if (data.trades) {
+                    console.log('Detectado formato del programa anterior (trades)');
+                    return normalizeTradingData(data, 'json', filename);
+                }
+                
+                if (data.sourceData && data.sourceData.trades) {
+                    return normalizeTradingData(data.sourceData, 'json', filename);
+                }
+                
+                if (data.importedData && data.importedData.trades) {
+                    return normalizeTradingData(data.importedData, 'json', filename);
+                }
+                
+                if (Array.isArray(data) && data.length > 0 && (data[0].pnl !== undefined || data[0].PnL !== undefined)) {
+                    return normalizeTradingData({ trades: data }, 'json', filename);
+                }
+                
+                if (data.monteCarloData) {
+                    return data.monteCarloData;
+                }
+                
+                throw new Error('Formato JSON no reconocido');
+                
+            } catch (error) {
+                throw new Error('JSON inválido: ' + error.message);
+            }
+        }
+
+        function importCSV(content, filename) {
+            try {
+                const lines = content.split('\n').filter(line => line.trim() !== '');
+                if (lines.length < 2) throw new Error('CSV vacío o con solo encabezados');
+                
+                const firstLine = lines[0];
+                const delimiter = firstLine.includes(';') ? ';' : ',';
+                
+                const headers = firstLine.split(delimiter).map(h => h.trim().toLowerCase());
+                const trades = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(delimiter).map(v => v.trim());
+                    const trade = {};
+                    
+                    headers.forEach((header, index) => {
+                        if (index < values.length) {
+                            let value = values[index];
+                            
+                            if (!isNaN(value) && value !== '') {
+                                value = parseFloat(value);
+                            }
+                            
+                            if (header.includes('date') || header.includes('time')) {
+                                try {
+                                    value = new Date(value).toISOString();
+                                } catch (e) {}
+                            }
+                            
+                            trade[header] = value;
+                        }
+                    });
+                    
+                    if (!trade.pnl && trade.profit !== undefined) trade.pnl = trade.profit;
+                    if (!trade.pnl && trade.pl !== undefined) trade.pnl = trade.pl;
+                    if (!trade.pnl && trade['p&l'] !== undefined) trade.pnl = trade['p&l'];
+                    
+                    if (!trade.rmultiple && trade.r !== undefined) trade.rmultiple = trade.r;
+                    if (!trade.rmultiple && trade.R !== undefined) trade.rmultiple = trade.R;
+                    
+                    trades.push(trade);
+                }
+                
+                return normalizeTradingData({ trades }, 'csv', filename);
+                
+            } catch (error) {
+                throw new Error('Error procesando CSV: ' + error.message);
+            }
+        }
+
+        function importTXT(content, filename) {
+            try {
+                if ((content.includes(',') || content.includes(';')) && content.includes('\n')) {
+                    return importCSV(content, filename);
+                } else if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+                    return importJSON(content, filename);
+                } else {
+                    const lines = content.split('\n').filter(line => line.trim() !== '');
+                    const trades = [];
+                    
+                    lines.forEach((line, index) => {
+                        const numbers = line.match(/-?\d+\.?\d*/g);
+                        if (numbers && numbers.length >= 1) {
+                            trades.push({
+                                id: index + 1,
+                                pnl: parseFloat(numbers[0]),
+                                entryDate: new Date().toISOString()
+                            });
+                        }
+                    });
+                    
+                    return normalizeTradingData({ trades }, 'txt', filename);
+                }
+            } catch (error) {
+                throw new Error('Error procesando TXT: ' + error.message);
+            }
+        }
+
+        function importExcel(content, filename) {
+            try {
+                showNotification('Importación de Excel requiere librería adicional', 'warning');
+                
+                const trades = [
+                    { id: 1, pnl: 100, rmultiple: 1.5 },
+                    { id: 2, pnl: -50, rmultiple: -0.5 },
+                    { id: 3, pnl: 200, rmultiple: 2.0 },
+                    { id: 4, pnl: -30, rmultiple: -0.3 },
+                    { id: 5, pnl: 150, rmultiple: 1.2 }
+                ];
+                
+                return normalizeTradingData({ trades }, 'excel', filename);
+                
+            } catch (error) {
+                throw new Error('Error procesando Excel: ' + error.message);
+            }
+        }
+
+        function normalizeTradingData(data, sourceType, filename = 'unknown') {
+            const trades = data.trades || data.transactions || [];
+            
+            console.log(`Normalizando ${trades.length} trades para Monte Carlo`);
+            
+            const processedTrades = trades.map((trade, index) => {
+                let pnlValue = 0;
+                if (trade.pnl !== undefined) pnlValue = trade.pnl;
+                else if (trade.PnL !== undefined) pnlValue = trade.PnL;
+                else if (trade.profit !== undefined) pnlValue = trade.profit;
+                else if (trade.pl !== undefined) pnlValue = trade.pl;
+                else if (trade['p&l'] !== undefined) pnlValue = trade['p&l'];
+                
+                let rMultiple = 0;
+                if (trade.rMultiple !== undefined) rMultiple = trade.rMultiple;
+                else if (trade.rmultiple !== undefined) rMultiple = trade.rmultiple;
+                else if (trade.r !== undefined) rMultiple = trade.r;
+                else if (trade.R !== undefined) rMultiple = trade.R;
+                else if (trade.rm !== undefined) rMultiple = trade.rm;
+                
+                return {
+                    id: trade.id || trade.ID || `trade_${index + 1}_${Date.now()}`,
+                    pnl: Number(pnlValue),
+                    rMultiple: Number(rMultiple),
+                    originalData: { ...trade }
+                };
+            });
+            
+            const validTrades = processedTrades.filter(t => t.pnl !== 0 || t.rMultiple !== 0);
+            
+            console.log(`Trades válidos: ${validTrades.length}`);
+            
+            return {
+                trades: validTrades,
+                metadata: {
+                    source: sourceType.toUpperCase(),
+                    filename: filename,
+                    importDate: new Date().toISOString(),
+                    totalTrades: validTrades.length,
+                    originalTradeCount: trades.length
+                }
+            };
+        }
+
+        // ===== SIMULACIÓN MONTE CARLO =====
+        function runMonteCarloSimulation() {
+            if (!importedData || !importedData.trades || importedData.trades.length === 0) {
+                showNotification('No hay datos para simular', 'warning');
+                return;
+            }
+            
+            if (isSimulationRunning) {
+                showNotification('Simulación en progreso...', 'info');
+                return;
+            }
+            
+            try {
+                isSimulationRunning = true;
+                const startTime = performance.now();
+                
+                const numSimulations = parseInt(document.getElementById('simulationsSlider').value);
+                const tradesPerSim = parseInt(document.getElementById('tradesPerSimSlider').value);
+                const initialCapital = parseFloat(document.getElementById('initialCapital').value);
+                const keepStreaks = document.getElementById('keepStreaksToggle').checked;
+                
+                document.getElementById('runSimulationBtn').disabled = true;
+                document.getElementById('runSimulationBtn').innerHTML = '<span class="pulse">🔄</span> Simulando...';
+                document.getElementById('systemStatus').textContent = 'Simulando...';
+                document.getElementById('systemStatus').style.color = 'var(--neon-yellow)';
+                
+                showNotification(`Iniciando ${numSimulations.toLocaleString()} simulaciones...`, 'info');
+                
+                setTimeout(() => {
+                    try {
+                        const results = executeMonteCarlo(
+                            importedData.trades,
+                            numSimulations,
+                            tradesPerSim,
+                            initialCapital,
+                            dataType,
+                            keepStreaks
+                        );
+                        
+                        const endTime = performance.now();
+                        const executionTime = endTime - startTime;
+                        
+                        simulationResults = {
+                            ...results,
+                            parameters: {
+                                numSimulations,
+                                tradesPerSim,
+                                initialCapital,
+                                dataType,
+                                keepStreaks
+                            },
+                            executionTime: executionTime,
+                            simulationDate: new Date().toISOString()
+                        };
+                        
+                        updateResultsUI(results, executionTime);
+                        generateAllCharts();
+                        enableExportButtons();
+                        saveToLocalStorage();
+                        
+                        showNotification(`Simulación completada en ${executionTime.toFixed(0)}ms`, 'success');
+                        
+                    } catch (error) {
+                        console.error('Error en simulación:', error);
+                        showNotification('Error en simulación: ' + error.message, 'error');
+                    } finally {
+                        isSimulationRunning = false;
+                        document.getElementById('runSimulationBtn').disabled = false;
+                        document.getElementById('runSimulationBtn').innerHTML = '<span>🚀</span> Ejecutar Simulación';
+                        document.getElementById('systemStatus').textContent = 'Completado';
+                        document.getElementById('systemStatus').style.color = 'var(--neon-green)';
+                    }
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error iniciando simulación:', error);
+                showNotification('Error: ' + error.message, 'error');
+                isSimulationRunning = false;
+                document.getElementById('runSimulationBtn').disabled = false;
+                document.getElementById('runSimulationBtn').innerHTML = '<span>🚀</span> Ejecutar Simulación';
+            }
+        }
+
+        function executeMonteCarlo(trades, numSimulations, tradesPerSim, initialCapital, dataType, keepStreaks) {
+            console.log(`Ejecutando Monte Carlo: ${numSimulations} simulaciones, ${tradesPerSim} trades cada una`);
+            
+            let dataValues;
+            if (dataType === 'r') {
+                dataValues = trades.map(t => t.rMultiple || 0).filter(v => v !== 0);
+            } else {
+                dataValues = trades.map(t => t.pnl || 0).filter(v => v !== 0);
+            }
+            
+            if (dataValues.length === 0) {
+                throw new Error('No hay datos válidos para simular');
+            }
+            
+            // Calcular estadísticas para Kelly
+            const winningTrades = dataValues.filter(v => v > 0);
+            const losingTrades = dataValues.filter(v => v < 0);
+            
+            const winRate = winningTrades.length / dataValues.length;
+            const avgWin = winningTrades.length > 0 ? ss.mean(winningTrades) : 0;
+            const avgLoss = losingTrades.length > 0 ? Math.abs(ss.mean(losingTrades)) : 0;
+            
+            // Calcular Kelly Criterion
+            let kellyFraction = 0;
+            if (avgLoss > 0) {
+                kellyFraction = winRate - ((1 - winRate) / (avgWin / avgLoss));
+                kellyFraction = Math.max(0, kellyFraction); // No apostar negativo
+            }
+            
+            // Limitar Kelly a 0.5 para evitar sobre-apalancamiento
+            kellyFraction = Math.min(kellyFraction, 0.5);
+            
+            const simulations = [];
+            const finalCapitals = [];
+            const clustersData = []; // Para análisis de clusters
+            
+            for (let sim = 0; sim < numSimulations; sim++) {
+                let capital = initialCapital;
+                const equityCurve = [capital];
+                let currentStreak = 0;
+                let streakType = 0; // 0 = neutral, 1 = winning, -1 = losing
+                const streaks = [];
+                
+                for (let i = 0; i < tradesPerSim; i++) {
+                    let tradeResult;
+                    
+                    if (keepStreaks && Math.random() > 0.95) {
+                        // Simular racha (3-10 trades seguidos)
+                        const streakLength = Math.floor(Math.random() * 8) + 3;
+                        const streakDirection = Math.random() > 0.5 ? 1 : -1;
+                        
+                        for (let j = 0; j < streakLength && i < tradesPerSim; j++, i++) {
+                            const randomIndex = Math.floor(Math.random() * dataValues.length);
+                            tradeResult = dataValues[randomIndex];
+                            
+                            // Forzar dirección de la racha
+                            if (streakDirection === 1 && tradeResult < 0) {
+                                tradeResult = Math.abs(tradeResult);
+                            } else if (streakDirection === -1 && tradeResult > 0) {
+                                tradeResult = -Math.abs(tradeResult);
+                            }
+                            
+                            if (dataType === 'r') {
+                                // Aplicar Kelly fraction para R-multiples
+                                capital += (capital * kellyFraction * 0.01) * tradeResult;
+                            } else {
+                                capital += tradeResult;
+                            }
+                            
+                            equityCurve.push(capital);
+                            
+                            // Track streaks
+                            if (tradeResult > 0) {
+                                if (streakType === 1) {
+                                    currentStreak++;
+                                } else {
+                                    if (currentStreak > 1) streaks.push({type: streakType, length: currentStreak});
+                                    currentStreak = 1;
+                                    streakType = 1;
+                                }
+                            } else if (tradeResult < 0) {
+                                if (streakType === -1) {
+                                    currentStreak++;
+                                } else {
+                                    if (currentStreak > 1) streaks.push({type: streakType, length: currentStreak});
+                                    currentStreak = 1;
+                                    streakType = -1;
+                                }
+                            }
+                        }
+                    } else {
+                        // Trade normal
+                        const randomIndex = Math.floor(Math.random() * dataValues.length);
+                        tradeResult = dataValues[randomIndex];
+                        
+                        if (dataType === 'r') {
+                            // Aplicar Kelly fraction
+                            capital += (capital * kellyFraction * 0.01) * tradeResult;
+                        } else {
+                            capital += tradeResult;
+                        }
+                        
+                        equityCurve.push(capital);
+                        
+                        // Track streaks
+                        if (tradeResult > 0) {
+                            if (streakType === 1) {
+                                currentStreak++;
+                            } else {
+                                if (currentStreak > 1) streaks.push({type: streakType, length: currentStreak});
+                                currentStreak = 1;
+                                streakType = 1;
+                            }
+                        } else if (tradeResult < 0) {
+                            if (streakType === -1) {
+                                currentStreak++;
+                            } else {
+                                if (currentStreak > 1) streaks.push({type: streakType, length: currentStreak});
+                                currentStreak = 1;
+                                streakType = -1;
+                            }
+                        }
+                    }
+                }
+                
+                // Guardar última racha
+                if (currentStreak > 1) {
+                    streaks.push({type: streakType, length: currentStreak});
+                }
+                
+                simulations.push(equityCurve);
+                finalCapitals.push(capital);
+                clustersData.push({
+                    simulationId: sim,
+                    totalStreaks: streaks.length,
+                    winningStreaks: streaks.filter(s => s.type === 1).length,
+                    losingStreaks: streaks.filter(s => s.type === -1).length,
+                    avgStreakLength: streaks.length > 0 ? 
+                        ss.mean(streaks.map(s => s.length)) : 0,
+                    maxStreakLength: streaks.length > 0 ? 
+                        Math.max(...streaks.map(s => s.length)) : 0
+                });
+                
+                if (sim % 100 === 0) {
+                    const progress = (sim / numSimulations) * 100;
+                    updateSimulationProgress(progress);
+                }
+            }
+            
+            finalCapitals.sort((a, b) => a - b);
+            
+            const percentile5 = finalCapitals[Math.floor(finalCapitals.length * 0.05)];
+            const percentile50 = finalCapitals[Math.floor(finalCapitals.length * 0.50)];
+            const percentile95 = finalCapitals[Math.floor(finalCapitals.length * 0.95)];
+            
+            const ruinThreshold = initialCapital * 0.5;
+            const ruinCount = finalCapitals.filter(c => c < ruinThreshold).length;
+            const ruinProbability = (ruinCount / finalCapitals.length) * 100;
+            
+            // Calcular estadísticas de clusters
+            const avgWinningStreaks = clustersData.length > 0 ? 
+                ss.mean(clustersData.map(c => c.winningStreaks)) : 0;
+            const avgLosingStreaks = clustersData.length > 0 ? 
+                ss.mean(clustersData.map(c => c.losingStreaks)) : 0;
+            const avgStreakLength = clustersData.length > 0 ? 
+                ss.mean(clustersData.map(c => c.avgStreakLength)) : 0;
+            
+            return {
+                simulations: simulations,
+                finalCapitals: finalCapitals,
+                clustersData: clustersData,
+                kellyData: {
+                    winRate: winRate,
+                    avgWin: avgWin,
+                    avgLoss: avgLoss,
+                    kellyFraction: kellyFraction,
+                    optimalFraction: kellyFraction * 100 // En porcentaje
+                },
+                percentiles: {
+                    p5: percentile5,
+                    p50: percentile50,
+                    p95: percentile95,
+                    min: Math.min(...finalCapitals),
+                    max: Math.max(...finalCapitals)
+                },
+                ruinProbability: ruinProbability,
+                clustersStats: {
+                    avgWinningStreaks: avgWinningStreaks,
+                    avgLosingStreaks: avgLosingStreaks,
+                    avgStreakLength: avgStreakLength,
+                    totalSimulations: clustersData.length
+                },
+                statistics: {
+                    dataType: dataType,
+                    totalTrades: dataValues.length
+                },
+                parameters: {
+                    numSimulations: numSimulations,
+                    tradesPerSim: tradesPerSim,
+                    initialCapital: initialCapital
+                }
+            };
+        }
+
+        function updateSimulationProgress(progress) {
+            if (progress % 10 === 0) {
+                console.log(`Progreso: ${progress.toFixed(1)}%`);
+            }
+        }
+
+        // ===== VISUALIZACIÓN =====
+        function generateAllCharts() {
+            if (!simulationResults) {
+                showNotification('Ejecuta una simulación primero', 'warning');
+                return;
+            }
+            
+            try {
+                Object.values(currentCharts).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+                currentCharts = {};
+                
+                generateCurvesChart();
+                generateOverlayChart();
+                generateDistributionChart();
+                generateClustersChart();
+                generateKellyChart();
+                
+                showNotification('Todas las gráficas generadas', 'success');
+                
+            } catch (error) {
+                console.error('Error generando gráficas:', error);
+                showNotification('Error generando gráficas', 'error');
+            }
+        }
+
+        function showChart(chartType) {
+            document.querySelectorAll('.chart-wrapper').forEach(wrapper => {
+                wrapper.style.display = 'none';
+            });
+            
+            const wrapperId = chartType + 'ChartWrapper';
+            const element = document.getElementById(wrapperId);
+            if (element) {
+                element.style.display = 'block';
+            }
+        }
+
+        function generateCurvesChart() {
+            if (!simulationResults || simulationResults.simulations.length === 0) return;
+            
+            const canvas = document.getElementById('curvesChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('curvesPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            const wrapper = document.getElementById('curvesChartWrapper');
+            canvas.width = wrapper.clientWidth - 30;
+            canvas.height = 350;
+            
+            const maxCurves = 100;
+            const simulations = simulationResults.simulations;
+            const displaySimulations = Math.min(maxCurves, simulations.length);
+            
+            const datasets = [];
+            const step = Math.max(1, Math.floor(simulations.length / displaySimulations));
+            
+            for (let i = 0; i < displaySimulations; i++) {
+                const simIndex = i * step;
+                if (simIndex < simulations.length) {
+                    datasets.push({
+                        label: `Sim ${simIndex + 1}`,
+                        data: simulations[simIndex],
+                        borderColor: `rgba(0, 240, 255, ${0.1 + (i % 10) * 0.05})`,
+                        backgroundColor: 'transparent',
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        tension: 0.1
+                    });
+                }
+            }
+            
+            currentCharts.curves = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: simulations[0].map((_, idx) => `Trade ${idx}`),
+                    datasets: datasets.slice(0, 50)
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: `Curvas de Simulación (${displaySimulations} de ${simulations.length})`,
+                            color: '#00f0ff'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Capital ($)',
+                                color: '#00f0ff'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#dfefff',
+                                maxTicksLimit: 10
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateOverlayChart() {
+            if (!simulationResults) return;
+            
+            const canvas = document.getElementById('overlayChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('overlayPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            const wrapper = document.getElementById('overlayChartWrapper');
+            canvas.width = wrapper.clientWidth - 30;
+            canvas.height = 350;
+            
+            const simulations = simulationResults.simulations;
+            const tradesCount = simulations[0].length;
+            
+            const p5Series = [];
+            const p50Series = [];
+            const p95Series = [];
+            
+            for (let tradeIdx = 0; tradeIdx < tradesCount; tradeIdx++) {
+                const valuesAtTrade = simulations.map(sim => sim[tradeIdx]);
+                valuesAtTrade.sort((a, b) => a - b);
+                
+                p5Series.push(valuesAtTrade[Math.floor(valuesAtTrade.length * 0.05)]);
+                p50Series.push(valuesAtTrade[Math.floor(valuesAtTrade.length * 0.50)]);
+                p95Series.push(valuesAtTrade[Math.floor(valuesAtTrade.length * 0.95)]);
+            }
+            
+            currentCharts.overlay = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: p5Series.map((_, idx) => `Trade ${idx}`),
+                    datasets: [
+                        {
+                            label: 'Percentil 95 (Optimista)',
+                            data: p95Series,
+                            borderColor: 'rgba(0, 255, 136, 1)',
+                            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                            borderWidth: 2,
+                            fill: '+1',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Percentil 50 (Mediana)',
+                            data: p50Series,
+                            borderColor: 'rgba(255, 255, 0, 1)',
+                            backgroundColor: 'rgba(255, 255, 0, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Percentil 5 (Pesimista)',
+                            data: p5Series,
+                            borderColor: 'rgba(255, 85, 85, 1)',
+                            backgroundColor: 'rgba(255, 85, 85, 0.1)',
+                            borderWidth: 2,
+                            fill: '-1',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Overlay de Percentiles',
+                            color: '#00ff88'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Capital ($)',
+                                color: '#00ff88'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#dfefff',
+                                maxTicksLimit: 10
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateDistributionChart() {
+            if (!simulationResults) return;
+            
+            const canvas = document.getElementById('distributionChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('distributionPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            const wrapper = document.getElementById('distributionChartWrapper');
+            canvas.width = wrapper.clientWidth - 30;
+            canvas.height = 350;
+            
+            const finalCapitals = simulationResults.finalCapitals;
+            
+            const min = Math.min(...finalCapitals);
+            const max = Math.max(...finalCapitals);
+            const binCount = 30;
+            const binSize = (max - min) / binCount;
+            
+            const bins = Array(binCount).fill(0);
+            finalCapitals.forEach(value => {
+                const binIndex = Math.min(Math.floor((value - min) / binSize), binCount - 1);
+                if (binIndex >= 0) bins[binIndex]++;
+            });
+            
+            const total = finalCapitals.length;
+            const frequencies = bins.map(bin => (bin / total) * 100);
+            
+            const labels = bins.map((_, i) => {
+                const binStart = min + i * binSize;
+                const binEnd = binStart + binSize;
+                return `$${Math.round(binStart)}-${Math.round(binEnd)}`;
+            });
+            
+            currentCharts.distribution = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Frecuencia (%)',
+                        data: frequencies,
+                        backgroundColor: 'rgba(168, 85, 247, 0.6)',
+                        borderColor: 'rgba(168, 85, 247, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Distribución del Capital Final',
+                            color: '#a855f7'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Frecuencia (%)',
+                                color: '#a855f7'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            beginAtZero: true
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#dfefff',
+                                maxTicksLimit: 10,
+                                callback: function(value, index) {
+                                    return index % 3 === 0 ? this.getLabelForValue(value) : '';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateClustersChart() {
+            if (!simulationResults || !simulationResults.clustersData) return;
+            
+            const canvas = document.getElementById('clustersChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('clustersPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            const wrapper = document.getElementById('clustersChartWrapper');
+            canvas.width = wrapper.clientWidth - 30;
+            canvas.height = 350;
+            
+            const clustersData = simulationResults.clustersData;
+            
+            // Preparar datos para histograma de longitud de rachas
+            const streakLengths = [];
+            clustersData.forEach(sim => {
+                // Simular algunas longitudes de racha basadas en las estadísticas
+                const avgLength = sim.avgStreakLength || 1;
+                const maxLength = sim.maxStreakLength || 1;
+                
+                // Generar datos de ejemplo basados en estadísticas
+                for (let i = 0; i < sim.totalStreaks; i++) {
+                    const length = Math.max(2, Math.round(avgLength + (Math.random() - 0.5) * 2));
+                    streakLengths.push(Math.min(length, maxLength));
+                }
+            });
+            
+            // Crear histograma
+            const minLength = 2;
+            const maxLength = Math.max(10, Math.max(...streakLengths));
+            const binCount = Math.min(10, maxLength - minLength);
+            
+            const bins = Array(binCount).fill(0);
+            streakLengths.forEach(length => {
+                if (length >= minLength && length <= maxLength) {
+                    const binIndex = Math.min(Math.floor((length - minLength) / ((maxLength - minLength) / binCount)), binCount - 1);
+                    if (binIndex >= 0) bins[binIndex]++;
+                }
+            });
+            
+            const labels = bins.map((_, i) => {
+                const binStart = minLength + i * ((maxLength - minLength) / binCount);
+                const binEnd = binStart + ((maxLength - minLength) / binCount);
+                return `${Math.round(binStart)}-${Math.round(binEnd)} trades`;
+            });
+            
+            currentCharts.clusters = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Frecuencia de Rachas',
+                        data: bins,
+                        backgroundColor: 'rgba(255, 140, 0, 0.6)',
+                        borderColor: 'rgba(255, 140, 0, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Distribución de Longitud de Rachas',
+                            color: '#ff8c00'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Frecuencia',
+                                color: '#ff8c00'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff'
+                            },
+                            beginAtZero: true
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Longitud de Racha (trades)',
+                                color: '#ff8c00'
+                            },
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#dfefff',
+                                maxTicksLimit: 10
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateKellyChart() {
+            if (!simulationResults || !simulationResults.kellyData) return;
+            
+            const canvas = document.getElementById('kellyChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('kellyPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            const wrapper = document.getElementById('kellyChartWrapper');
+            canvas.width = wrapper.clientWidth - 30;
+            canvas.height = 350;
+            
+            const kellyData = simulationResults.kellyData;
+            
+            // Simular diferentes fracciones de Kelly para ver el impacto
+            const kellyFractions = [0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+            const finalCapitals = [];
+            
+            kellyFractions.forEach(fraction => {
+                // Simular resultado final aproximado
+                const expectedReturn = (kellyData.winRate * kellyData.avgWin - 
+                                      (1 - kellyData.winRate) * kellyData.avgLoss) * fraction;
+                const baseCapital = 10000;
+                const simulatedCapital = baseCapital * Math.exp(expectedReturn * 100); // Aproximación
+                finalCapitals.push(simulatedCapital);
+            });
+            
+            currentCharts.kelly = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: kellyFractions.map(f => `${(f * 100).toFixed(0)}%`),
+                    datasets: [{
+                        label: 'Capital Final Esperado',
+                        data: finalCapitals,
+                        borderColor: 'rgba(111, 92, 255, 1)',
+                        backgroundColor: 'rgba(111, 92, 255, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 6,
+                        pointBackgroundColor: kellyFractions.map((f, i) => 
+                            f === kellyData.kellyFraction ? '#ffff00' : 'rgba(111, 92, 255, 1)'
+                        )
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: `Optimización con Kelly Criterion (Óptimo: ${(kellyData.kellyFraction * 100).toFixed(1)}%)`,
+                            color: '#6f5cff'
+                        },
+                        annotation: {
+                            annotations: {
+                                kellyLine: {
+                                    type: 'line',
+                                    xMin: kellyData.kellyFraction,
+                                    xMax: kellyData.kellyFraction,
+                                    borderColor: '#ffff00',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        content: `Óptimo: ${(kellyData.kellyFraction * 100).toFixed(1)}%`,
+                                        enabled: true,
+                                        position: 'top',
+                                        backgroundColor: 'rgba(0,0,0,0.7)',
+                                        color: '#ffff00'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Capital Esperado ($)',
+                                color: '#6f5cff'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Fracción de Kelly (%)',
+                                color: '#6f5cff'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== EXPORTACIÓN =====
+        function exportData() {
+            if (!simulationResults) {
+                showNotification('No hay resultados para exportar', 'warning');
+                return;
+            }
+            
+            try {
+                let content, filename, mimeType;
+                
+                switch(selectedFormat) {
+                    case 'json':
+                        content = JSON.stringify({
+                            monteCarloResults: simulationResults,
+                            metadata: {
+                                exportDate: new Date().toISOString(),
+                                program: 'Monte Carlo Simulator v1.0'
+                            }
+                        }, null, 2);
+                        filename = `monte_carlo_${new Date().toISOString().slice(0, 10)}.json`;
+                        mimeType = 'application/json';
+                        break;
+                        
+                    case 'csv':
+                        content = convertToCSV(simulationResults);
+                        filename = `monte_carlo_${new Date().toISOString().slice(0, 10)}.csv`;
+                        mimeType = 'text/csv';
+                        break;
+                        
+                    case 'pdf':
+                        showNotification('Exportación PDF requiere librería adicional', 'info');
+                        return;
+                        
+                    case 'png':
+                        exportChartsAsPNG();
+                        return;
+                        
+                    case 'excel':
+                        content = convertToCSV(simulationResults);
+                        filename = `monte_carlo_${new Date().toISOString().slice(0, 10)}.csv`;
+                        mimeType = 'application/vnd.ms-excel';
+                        showNotification('Exportado como CSV (Excel requeriría librería adicional)', 'info');
+                        break;
+                        
+                    default:
+                        throw new Error('Formato no soportado');
+                }
+                
+                document.getElementById('exportProgress').classList.remove('hidden');
+                document.getElementById('exportProgressBar').style.width = '50%';
+                
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                document.getElementById('exportProgressBar').style.width = '100%';
+                
+                document.getElementById('lastSimulation').textContent = new Date().toLocaleTimeString();
+                
+                setTimeout(() => {
+                    document.getElementById('exportProgress').classList.add('hidden');
+                    document.getElementById('exportProgressBar').style.width = '0%';
+                }, 1000);
+                
+                showNotification(`Resultados exportados como ${selectedFormat.toUpperCase()}`, 'success');
+                
+            } catch (error) {
+                console.error('Error exportando:', error);
+                showNotification('Error exportando datos', 'error');
+                document.getElementById('exportProgress').classList.add('hidden');
+            }
+        }
+
+        function exportAllData() {
+            const formats = ['json', 'csv'];
+            let exportedCount = 0;
+            
+            formats.forEach(format => {
+                try {
+                    selectedFormat = format;
+                    document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelector(`[data-format="${format}"]`).classList.add('active');
+                    exportData();
+                    exportedCount++;
+                } catch (error) {
+                    console.error(`Error exportando ${format}:`, error);
+                }
+            });
+            
+            if (exportedCount > 0) {
+                showNotification(`${exportedCount} formatos exportados`, 'success');
+            }
+        }
+
+        function exportForNextProgram() {
+            if (!simulationResults) {
+                showNotification('No hay resultados para exportar', 'warning');
+                return;
+            }
+            
+            try {
+                const exportData = {
+                    simulationResults: simulationResults,
+                    summary: {
+                        percentiles: simulationResults.percentiles,
+                        ruinProbability: simulationResults.ruinProbability,
+                        executionTime: simulationResults.executionTime,
+                        totalSimulations: simulationResults.parameters.numSimulations,
+                        kellyFraction: simulationResults.kellyData?.kellyFraction || 0,
+                        clustersStats: simulationResults.clustersStats || {}
+                    },
+                    metadata: {
+                        source: 'Monte Carlo Simulator',
+                        exportDate: new Date().toISOString(),
+                        nextProgram: 'Risk Analysis v1.0',
+                        formatVersion: '1.0'
+                    }
+                };
+                
+                const content = JSON.stringify(exportData, null, 2);
+                const filename = `next_program_data_${new Date().toISOString().slice(0, 10)}.json`;
+                
+                const blob = new Blob([content], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                showNotification('Datos preparados para siguiente programa', 'success');
+                
+            } catch (error) {
+                console.error('Error exportando para siguiente programa:', error);
+                showNotification('Error exportando datos', 'error');
+            }
+        }
+
+        function convertToCSV(results) {
+            if (!results.finalCapitals || results.finalCapitals.length === 0) return 'No hay datos';
+            
+            let content = 'Simulation ID,Final Capital,Trades Count,Initial Capital,DataType,Kelly Fraction,Winning Streaks,Losing Streaks\n';
+            
+            results.finalCapitals.forEach((capital, index) => {
+                const clusters = results.clustersData?.[index] || {winningStreaks: 0, losingStreaks: 0};
+                content += `${index + 1},${capital},${results.parameters.tradesPerSim},${results.parameters.initialCapital},${results.statistics.dataType},${results.kellyData?.kellyFraction || 0},${clusters.winningStreaks},${clusters.losingStreaks}\n`;
+            });
+            
+            return content;
+        }
+
+        function exportChartsAsPNG() {
+            const charts = Object.values(currentCharts);
+            if (charts.length === 0) {
+                showNotification('No hay gráficas para exportar', 'warning');
+                return;
+            }
+            
+            charts.forEach((chart, index) => {
+                if (chart) {
+                    const link = document.createElement('a');
+                    link.download = `monte_carlo_chart_${index + 1}_${new Date().toISOString().slice(0, 10)}.png`;
+                    link.href = chart.toBase64Image();
+                    link.click();
+                }
+            });
+            
+            showNotification(`${charts.length} gráficas exportadas como PNG`, 'success');
+        }
+
+        // ===== UI UPDATES =====
+        function updateImportStats(file, data) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileType').textContent = data.metadata?.source || 'N/A';
+            document.getElementById('recordCount').textContent = data.trades?.length || 0;
+            document.getElementById('importStatus').textContent = 'Importado';
+            document.getElementById('importStatus').style.color = 'var(--neon-green)';
+            document.getElementById('baseTradesCount').textContent = data.trades?.length || 0;
+            
+            const dataSize = JSON.stringify(data).length;
+            document.getElementById('dataSize').textContent = `${(dataSize / 1024).toFixed(1)} KB`;
+        }
+
+        function enableSimulationButton() {
+            document.getElementById('runSimulationBtn').disabled = false;
+        }
+
+        function enableExportButtons() {
+            document.getElementById('exportBtn').disabled = false;
+            document.getElementById('exportAllBtn').disabled = false;
+            document.getElementById('exportForNextBtn').disabled = false;
+        }
+
+        function updateResultsUI(results, executionTime) {
+            // Actualizar percentiles con formato adecuado
+            document.getElementById('percentile5').textContent = `$${results.percentiles.p5.toFixed(2)}`;
+            document.getElementById('percentile50').textContent = `$${results.percentiles.p50.toFixed(2)}`;
+            document.getElementById('percentile95').textContent = `$${results.percentiles.p95.toFixed(2)}`;
+            
+            // Actualizar estadísticas adicionales
+            document.getElementById('finalCapitalMin').textContent = `$${results.percentiles.min.toFixed(2)}`;
+            document.getElementById('finalCapitalMax').textContent = `$${results.percentiles.max.toFixed(2)}`;
+            document.getElementById('ruinProbability').textContent = `${results.ruinProbability.toFixed(1)}%`;
+            document.getElementById('executionTime').textContent = `${executionTime.toFixed(0)}ms`;
+            
+            // Actualizar contadores
+            document.getElementById('simulationsCount').textContent = results.parameters.numSimulations.toLocaleString();
+            
+            // Actualizar sistema
+            document.getElementById('systemStatus').textContent = 'Simulado';
+            document.getElementById('systemStatus').style.color = 'var(--neon-green)';
+            document.getElementById('lastSimulation').textContent = new Date().toLocaleTimeString();
+            
+            // Mostrar información de Kelly si está disponible
+            if (results.kellyData) {
+                showNotification(`Fracción óptima de Kelly: ${(results.kellyData.kellyFraction * 100).toFixed(1)}%`, 'info');
+            }
+        }
+
+        function updateUIForDataType() {
+            const label = dataType === 'r' ? 'R-Multiple' : 'PnL ($)';
+            showNotification(`Usando datos de ${label} para simulación`, 'info');
+        }
+
+        // ===== UTILITIES =====
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 4px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                border: 1px solid;
+            `;
+            
+            const colors = {
+                success: { bg: 'rgba(0, 255, 136, 0.9)', border: 'rgba(0, 255, 136, 0.5)' },
+                error: { bg: 'rgba(255, 85, 85, 0.9)', border: 'rgba(255, 85, 85, 0.5)' },
+                warning: { bg: 'rgba(255, 255, 0, 0.9)', border: 'rgba(255, 255, 0, 0.5)', color: '#000' },
+                info: { bg: 'rgba(0, 240, 255, 0.9)', border: 'rgba(0, 240, 255, 0.5)' }
+            };
+            
+            const color = colors[type] || colors.info;
+            notification.style.background = color.bg;
+            notification.style.borderColor = color.border;
+            if (color.color) notification.style.color = color.color;
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        function clearAllData() {
+            if (confirm('¿Estás seguro de que quieres eliminar todos los datos?')) {
+                importedData = null;
+                simulationResults = null;
+                
+                Object.values(currentCharts).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+                currentCharts = {};
+                
+                document.getElementById('importStats').innerHTML = `
+                    <div class="stat-item">
+                        <span class="stat-label">Archivo:</span>
+                        <span class="stat-value" id="fileName">Ninguno</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Tipo:</span>
+                        <span class="stat-value" id="fileType">N/A</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Registros:</span>
+                        <span class="stat-value" id="recordCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Estado:</span>
+                        <span class="stat-value" id="importStatus" style="color: var(--neon-yellow);">Pendiente</span>
+                    </div>
+                `;
+                
+                document.getElementById('percentile5').textContent = '$0.00';
+                document.getElementById('percentile50').textContent = '$0.00';
+                document.getElementById('percentile95').textContent = '$0.00';
+                document.getElementById('finalCapitalMin').textContent = '$0.00';
+                document.getElementById('finalCapitalMax').textContent = '$0.00';
+                document.getElementById('ruinProbability').textContent = '0.0%';
+                document.getElementById('executionTime').textContent = '0ms';
+                
+                document.getElementById('simulationsCount').textContent = '0';
+                document.getElementById('baseTradesCount').textContent = '0';
+                document.getElementById('systemStatus').textContent = 'Esperando datos';
+                document.getElementById('systemStatus').style.color = 'var(--neon-yellow)';
+                document.getElementById('lastSimulation').textContent = 'Nunca';
+                document.getElementById('dataSize').textContent = '0 KB';
+                
+                document.getElementById('runSimulationBtn').disabled = true;
+                document.getElementById('exportBtn').disabled = true;
+                document.getElementById('exportAllBtn').disabled = true;
+                document.getElementById('exportForNextBtn').disabled = true;
+                
+                document.querySelectorAll('.chart-placeholder').forEach(p => p.classList.remove('hidden'));
+                document.querySelectorAll('canvas').forEach(c => c.classList.add('hidden'));
+                
+                localStorage.removeItem(STORAGE_KEY);
+                
+                showNotification('Todos los datos han sido eliminados', 'info');
+            }
+        }
+
+        function toggleKeepStreaks() {
+            const toggle = document.getElementById('keepStreaksToggle');
+            showNotification(`Rachas ${toggle.checked ? 'activadas' : 'desactivadas'}`, 'info');
+        }
+
+        function toggleAutoStart() {
+            const toggle = document.getElementById('autoStartToggle');
+            showNotification(`Auto-inicio ${toggle.checked ? 'activado' : 'desactivado'}`, 'info');
+        }
+
+        // ===== LOCAL STORAGE =====
+        function saveToLocalStorage() {
+            try {
+                const data = {
+                    importedData,
+                    simulationResults,
+                    settings: {
+                        dataType,
+                        numSimulations: document.getElementById('simulationsSlider').value,
+                        tradesPerSim: document.getElementById('tradesPerSimSlider').value,
+                        initialCapital: document.getElementById('initialCapital').value
+                    },
+                    savedAt: new Date().toISOString()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (error) {
+                console.warn('Error guardando datos:', error);
+            }
+        }
+
+        function loadSavedData() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    importedData = data.importedData;
+                    simulationResults = data.simulationResults;
+                    dataType = data.settings?.dataType || 'pnl';
+                    
+                    if (data.settings) {
+                        document.getElementById('simulationsSlider').value = data.settings.numSimulations || 1000;
+                        document.getElementById('simulationsValue').textContent = (data.settings.numSimulations || 1000).toLocaleString();
+                        document.getElementById('tradesPerSimSlider').value = data.settings.tradesPerSim || 100;
+                        document.getElementById('tradesPerSimValue').textContent = (data.settings.tradesPerSim || 100).toLocaleString();
+                        document.getElementById('initialCapital').value = data.settings.initialCapital || 10000;
+                    }
+                    
+                    if (dataType === 'r') {
+                        document.getElementById('useRBtn').click();
+                    } else {
+                        document.getElementById('usePnLBtn').click();
+                    }
+                    
+                    if (importedData) {
+                        document.getElementById('fileName').textContent = importedData.metadata?.filename || 'Guardado';
+                        document.getElementById('fileType').textContent = importedData.metadata?.source || 'N/A';
+                        document.getElementById('recordCount').textContent = importedData.trades?.length || 0;
+                        document.getElementById('importStatus').textContent = 'Cargado';
+                        document.getElementById('importStatus').style.color = 'var(--neon-green)';
+                        document.getElementById('baseTradesCount').textContent = importedData.trades?.length || 0;
+                        
+                        enableSimulationButton();
+                    }
+                    
+                    if (simulationResults) {
+                        updateResultsUI(simulationResults, simulationResults.executionTime || 0);
+                        enableExportButtons();
+                        generateAllCharts();
+                    }
+                    
+                    showNotification('Datos cargados desde almacenamiento local', 'info');
+                }
+            } catch (error) {
+                console.warn('Error cargando datos:', error);
+            }
+        }
+    </script>
+</body>
+</html>

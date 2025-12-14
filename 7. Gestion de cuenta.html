@@ -1,0 +1,3000 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRADING ANALYTICS | GESTIÓN DE CUENTA</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Simple Statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <style>
+        /* ===== ESTILOS CYBERPUNK (MISMO QUE ANTERIOR) ===== */
+        :root {
+            --bg-1: #06060a;
+            --bg-2: #0b0011;
+            --neon-cyan: #00f0ff;
+            --neon-blue: #6f5cff;
+            --neon-magenta: #ff4cff;
+            --neon-green: #00ff88;
+            --neon-red: #ff5555;
+            --neon-yellow: #ffff00;
+            --neon-orange: #ff8c00;
+            --neon-purple: #a855f7;
+            --muted: rgba(230, 238, 248, 0.55);
+            --card-bg: rgba(20, 20, 40, 0.85);
+            --glow-cyan: 0 0 10px rgba(0, 240, 255, 0.5);
+            --glow-green: 0 0 10px rgba(0, 255, 136, 0.5);
+            --glow-red: 0 0 10px rgba(255, 85, 85, 0.5);
+            --glow-yellow: 0 0 10px rgba(255, 255, 0, 0.5);
+            --radius: 8px;
+            --border-thin: 1px solid rgba(0, 240, 255, 0.2);
+            font-family: 'Segoe UI', 'Courier New', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-1);
+            color: #dfefff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.03) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 255, 0.03) 0%, transparent 20%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .app-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            border-bottom: var(--border-thin);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+            animation: scanline 3s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: var(--glow-cyan);
+            letter-spacing: 1px;
+        }
+
+        .system-info {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+        }
+
+        .info-badge {
+            background: rgba(0, 240, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: var(--border-thin);
+        }
+
+        /* MAIN LAYOUT */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .section-title {
+            color: var(--neon-cyan);
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: var(--border-thin);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* IMPORT PANEL */
+        .import-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .file-types {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .file-type-btn {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            height: 70px;
+        }
+
+        .file-type-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            transform: translateY(-2px);
+        }
+
+        .file-type-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .file-type-icon {
+            font-size: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-blue));
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(90deg, var(--neon-green), rgba(0, 255, 136, 0.7));
+            color: #000;
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, var(--neon-red), rgba(255, 85, 85, 0.7));
+            color: #000;
+        }
+
+        .btn-warning {
+            background: linear-gradient(90deg, var(--neon-yellow), rgba(255, 255, 0, 0.7));
+            color: #000;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* DATA STATS */
+        .data-stats {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.05);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat-value {
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* CONFIGURATION PANEL */
+        .config-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-label {
+            color: var(--muted);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .config-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            padding: 10px;
+            color: var(--neon-cyan);
+            font-family: inherit;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* SLIDER WITH VALUE */
+        .slider-with-value {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .slider-value {
+            min-width: 70px;
+            text-align: center;
+            color: var(--neon-cyan);
+            font-weight: 600;
+            font-size: 14px;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            outline: none;
+            margin: 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            border: 2px solid var(--bg-1);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        /* SIMULATION CONTROLS */
+        .sim-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* RESULTS PANEL */
+        .results-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .result-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            text-align: center;
+            transition: all 0.3s;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .result-card:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .result-title {
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .result-subtext {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* CHARTS SECTION */
+        .charts-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .chart-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: var(--border-thin);
+            flex-wrap: wrap;
+        }
+
+        .chart-tab {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .chart-tab:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .chart-tab.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .chart-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .chart-wrapper {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            height: 400px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-title {
+            color: var(--neon-cyan);
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* SCENARIO SELECTOR */
+        .scenario-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .scenario-btn {
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .scenario-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+        }
+
+        .scenario-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* ADVANCED OPTIONS */
+        .advanced-options {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: var(--border-thin);
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .option-label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* SWITCH TOGGLE */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--neon-cyan);
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(0, 240, 255, 0.2);
+            border-color: var(--neon-cyan);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* EXPORT PANEL */
+        .export-panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: var(--border-thin);
+            backdrop-filter: blur(5px);
+        }
+
+        .export-formats {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .format-btn {
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .format-btn:hover {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+        }
+
+        .format-btn.active {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* UTILITIES */
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--neon-cyan), var(--neon-magenta));
+            border-radius: 3px;
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .scenario-selector {
+                grid-template-columns: 1fr;
+            }
+            
+            .sim-controls {
+                flex-direction: column;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+
+        /* NEW STYLES FOR ACCOUNT MANAGEMENT */
+        .account-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--neon-yellow);
+        }
+
+        .status-indicator.safe {
+            background-color: var(--neon-green);
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.warning {
+            background-color: var(--neon-yellow);
+            animation: pulse 1s infinite;
+        }
+
+        .status-indicator.danger {
+            background-color: var(--neon-red);
+            animation: pulse 0.5s infinite;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .recommendation-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: var(--radius);
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .recommendation-title {
+            color: var(--neon-green);
+            font-size: 14px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .recommendation-content {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .strategy-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin: 2px;
+        }
+
+        .strategy-badge.conservative {
+            background: rgba(0, 240, 255, 0.2);
+            color: var(--neon-cyan);
+            border: 1px solid var(--neon-cyan);
+        }
+
+        .strategy-badge.moderate {
+            background: rgba(255, 255, 0, 0.2);
+            color: var(--neon-yellow);
+            border: 1px solid var(--neon-yellow);
+        }
+
+        .strategy-badge.aggressive {
+            background: rgba(255, 85, 85, 0.2);
+            color: var(--neon-red);
+            border: 1px solid var(--neon-red);
+        }
+
+        .volatility-indicator {
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .volatility-level {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .volatility-level.low {
+            background: linear-gradient(90deg, var(--neon-green), rgba(0, 255, 136, 0.7));
+        }
+
+        .volatility-level.medium {
+            background: linear-gradient(90deg, var(--neon-yellow), rgba(255, 255, 0, 0.7));
+        }
+
+        .volatility-level.high {
+            background: linear-gradient(90deg, var(--neon-red), rgba(255, 85, 85, 0.7));
+        }
+
+        .kelly-bars {
+            display: flex;
+            gap: 5px;
+            height: 100px;
+            align-items: flex-end;
+            margin-top: 15px;
+        }
+
+        .kelly-bar {
+            flex: 1;
+            background: rgba(0, 240, 255, 0.3);
+            border-radius: 4px 4px 0 0;
+            transition: height 0.5s ease;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .kelly-bar:hover {
+            background: rgba(0, 240, 255, 0.5);
+        }
+
+        .kelly-bar-label {
+            position: absolute;
+            bottom: -25px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .kelly-bar-value {
+            position: absolute;
+            top: -25px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 10px;
+            color: var(--neon-cyan);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div style="width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(45deg, var(--neon-cyan), var(--neon-magenta));"></div>
+                <div>
+                    <h1>TRADING ANALYTICS | GESTIÓN DE CUENTA</h1>
+                    <div style="font-size: 12px; color: var(--muted);">Análisis de Riesgo y Gestión de Capital</div>
+                </div>
+            </div>
+            <div class="system-info">
+                <div class="info-badge">
+                    <span>💰</span> Estado: <strong id="systemStatus" style="color: var(--neon-yellow);">Esperando datos</strong>
+                </div>
+                <div class="info-badge">
+                    <span>⚡</span> Programa: <strong style="color: var(--neon-cyan);">7/8</strong>
+                </div>
+                <div class="info-badge">
+                    <span>🔗</span> Conexión: <strong id="connectionStatus" style="color: var(--neon-green);">Standalone</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- === SECCIÓN DE IMPORTACIÓN === -->
+                <div class="import-panel">
+                    <div class="section-title">
+                        <span>📤</span> IMPORTAR DATOS
+                    </div>
+                    
+                    <div class="file-types">
+                        <div class="file-type-btn active" data-type="parametric" id="parametricBtn">
+                            <div class="file-type-icon">📊</div>
+                            <div>Simulador Paramétrico</div>
+                            <input type="file" id="parametricInput" class="file-input" accept=".json">
+                        </div>
+                        <div class="file-type-btn" data-type="manual" id="manualBtn">
+                            <div class="file-type-icon">✍️</div>
+                            <div>Configuración Manual</div>
+                        </div>
+                        <div class="file-type-btn" data-type="portfolio" id="portfolioBtn">
+                            <div class="file-type-icon">📈</div>
+                            <div>Portafolio Existente</div>
+                            <input type="file" id="portfolioInput" class="file-input" accept=".json">
+                        </div>
+                        <div class="file-type-btn" data-type="example" id="exampleBtn">
+                            <div class="file-type-icon">🎯</div>
+                            <div>Ejemplo Rápido</div>
+                        </div>
+                    </div>
+
+                    <div class="data-stats" id="importStats">
+                        <div class="stat-item">
+                            <span class="stat-label">Archivo:</span>
+                            <span class="stat-value" id="fileName">Ninguno</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Tipo:</span>
+                            <span class="stat-value" id="fileType">N/A</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Datos:</span>
+                            <span class="stat-value" id="dataStatus">Sin cargar</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Estado:</span>
+                            <span class="stat-value" id="importStatus" style="color: var(--neon-yellow);">Pendiente</span>
+                        </div>
+                    </div>
+
+                    <!-- Manual Configuration (hidden by default) -->
+                    <div id="manualConfig" style="display: none; margin-top: 15px;">
+                        <div class="section-title" style="font-size: 14px;">
+                            <span>⚙️</span> CONFIGURACIÓN MANUAL
+                        </div>
+                        
+                        <div class="config-grid">
+                            <div class="config-group">
+                                <div class="config-label">
+                                    <span>💰</span> Capital Actual ($)
+                                </div>
+                                <input type="number" id="manualCapital" class="config-input" value="10000" min="100" step="100">
+                            </div>
+                            
+                            <div class="config-group">
+                                <div class="config-label">
+                                    <span>🎯</span> Riesgo por Trade (%)
+                                </div>
+                                <div class="slider-with-value">
+                                    <input type="range" id="manualRiskSlider" min="0.1" max="10" value="2" step="0.1" class="config-input">
+                                    <div class="slider-value" id="manualRiskValue">2.0%</div>
+                                </div>
+                            </div>
+                            
+                            <div class="config-group">
+                                <div class="config-label">
+                                    <span>📊</span> Win Rate (%)
+                                </div>
+                                <div class="slider-with-value">
+                                    <input type="range" id="manualWinRateSlider" min="1" max="99" value="55" step="1" class="config-input">
+                                    <div class="slider-value" id="manualWinRateValue">55%</div>
+                                </div>
+                            </div>
+                            
+                            <div class="config-group">
+                                <div class="config-label">
+                                    <span>⚖️</span> Risk/Reward Ratio
+                                </div>
+                                <div class="slider-with-value">
+                                    <input type="range" id="manualRRSlider" min="0.5" max="5" value="2" step="0.1" class="config-input">
+                                    <div class="slider-value" id="manualRRValue">1:2</div>
+                                </div>
+                            </div>
+                            
+                            <button class="btn btn-success" id="applyManualConfig">
+                                <span>✅</span> Aplicar Configuración
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- === FIN SECCIÓN IMPORTACIÓN === -->
+
+                <!-- 7.1 Panel General -->
+                <div class="results-panel">
+                    <div class="section-title">
+                        <span>📊</span> 7.1 PANEL GENERAL
+                    </div>
+                    
+                    <!-- Account Status -->
+                    <div class="account-status">
+                        <div class="status-indicator" id="accountStatusIndicator"></div>
+                        <div class="status-text" id="accountStatusText">Estado de cuenta: Sin datos</div>
+                    </div>
+                    
+                    <div class="results-grid">
+                        <!-- 7.1.1 Capital actual -->
+                        <div class="result-card">
+                            <div class="result-title">7.1.1 Capital Actual</div>
+                            <div class="result-value" id="currentCapitalValue" style="color: var(--neon-green);">$0.00</div>
+                            <div class="result-subtext">Disponible para trading</div>
+                        </div>
+                        
+                        <!-- 7.1.2 Riesgo actual -->
+                        <div class="result-card">
+                            <div class="result-title">7.1.2 Riesgo Actual</div>
+                            <div class="result-value" id="currentRiskValue" style="color: var(--neon-red);">0%</div>
+                            <div class="result-subtext">Por trade / Por cuenta</div>
+                        </div>
+                        
+                        <!-- 7.1.3 Probabilidad de ruina -->
+                        <div class="result-card">
+                            <div class="result-title">7.1.3 Prob. Ruina</div>
+                            <div class="result-value" id="ruinProbabilityValue" style="color: var(--neon-yellow);">0%</div>
+                            <div class="result-subtext">Basado en configuración</div>
+                        </div>
+                        
+                        <!-- 7.1.4 Tamaño recomendado -->
+                        <div class="result-card">
+                            <div class="result-title">7.1.4 Tamaño Recomendado</div>
+                            <div class="result-value" id="recommendedSizeValue" style="color: var(--neon-cyan);">$0</div>
+                            <div class="result-subtext">Posición óptima</div>
+                        </div>
+                    </div>
+
+                    <!-- Recomendaciones -->
+                    <div class="recommendation-box">
+                        <div class="recommendation-title">
+                            <span>💡</span> RECOMENDACIÓN DEL SISTEMA
+                        </div>
+                        <div class="recommendation-content" id="systemRecommendation">
+                            Importa datos del simulador paramétrico o configura manualmente para obtener recomendaciones personalizadas.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7.2 Cálculo Avanzado -->
+                <div class="config-panel">
+                    <div class="section-title">
+                        <span>⚡</span> 7.2 CÁLCULO AVANZADO
+                    </div>
+                    
+                    <div class="config-grid">
+                        <!-- 7.2.1 Kelly -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>🎲</span> 7.2.1 Fracción de Kelly (%)
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="kellyFractionSlider" min="1" max="100" value="25" step="1" class="config-input" disabled>
+                                <div class="slider-value" id="kellyFractionValue">25%</div>
+                            </div>
+                            <div class="result-subtext" style="text-align: center; margin-top: 5px;">
+                                Kelly Full: <span id="kellyFullValue">0%</span> | Recomendado: <span id="kellyRecommended" style="color: var(--neon-green);">25%</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 7.2.2 Riesgo dinámico basado en drawdown -->
+                        <div class="option-row">
+                            <span class="option-label">7.2.2 Riesgo Dinámico (Drawdown)</span>
+                            <label class="switch">
+                                <input type="checkbox" id="dynamicRiskToggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="config-group" id="dynamicRiskSettings" style="display: none;">
+                            <div class="config-label">
+                                <span>📉</span> Drawdown Máximo Permitido (%)
+                            </div>
+                            <div class="slider-with-value">
+                                <input type="range" id="maxDrawdownSlider" min="5" max="50" value="20" step="1" class="config-input">
+                                <div class="slider-value" id="maxDrawdownValue">20%</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 7.2.3 Ajuste según volatilidad del sistema -->
+                        <div class="option-row">
+                            <span class="option-label">7.2.3 Ajuste por Volatilidad</span>
+                            <label class="switch">
+                                <input type="checkbox" id="volatilityAdjustToggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="volatilityPanel" style="display: none; margin-top: 10px;">
+                            <div class="config-label">
+                                <span>🌊</span> Volatilidad del Sistema
+                            </div>
+                            <div class="volatility-indicator">
+                                <div class="volatility-level" id="volatilityLevel" style="width: 30%;"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--muted);">
+                                <span>Baja</span>
+                                <span>Media</span>
+                                <span>Alta</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Estrategias de Riesgo -->
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>🛡️</span> Estrategia de Riesgo
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                                <span class="strategy-badge conservative" data-strategy="conservative">Conservadora</span>
+                                <span class="strategy-badge moderate active" data-strategy="moderate">Moderada</span>
+                                <span class="strategy-badge aggressive" data-strategy="aggressive">Agresiva</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Botón Calcular -->
+                        <div class="sim-controls">
+                            <button class="btn btn-primary" id="calculateRiskBtn" disabled>
+                                <span>🧮</span> Calcular Gestión
+                            </button>
+                            <button class="btn btn-secondary" id="resetBtn">
+                                <span>🔄</span> Reiniciar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Análisis Visual -->
+                <div class="charts-section">
+                    <div class="section-title">
+                        <span>📈</span> ANÁLISIS VISUAL
+                    </div>
+                    
+                    <!-- Pestañas de gráficas -->
+                    <div class="chart-tabs" id="chartTabs">
+                        <div class="chart-tab active" data-chart="risk">Distribución de Riesgo</div>
+                        <div class="chart-tab" data-chart="kelly">Análisis Kelly</div>
+                        <div class="chart-tab" data-chart="growth">Crecimiento Esperado</div>
+                        <div class="chart-tab" data-chart="drawdown">Simulación Drawdown</div>
+                        <div class="chart-tab" data-chart="comparison">Comparación Estrategias</div>
+                    </div>
+                    
+                    <!-- Contenedores de gráficas -->
+                    <div class="chart-container">
+                        <!-- Distribución de Riesgo -->
+                        <div class="chart-wrapper" id="riskChartWrapper">
+                            <div class="chart-title">
+                                <span>🎯</span> DISTRIBUCIÓN DE RIESGO POR ESTRATEGIA
+                            </div>
+                            <div class="chart-placeholder" id="riskPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-red); opacity: 0.3;">📊</div>
+                                <div style="color: var(--muted); max-width: 300px;">
+                                    <strong>Importa datos para visualizar análisis de riesgo</strong><br>
+                                    <small>Se mostrarán diferentes estrategias de gestión</small>
+                                </div>
+                            </div>
+                            <canvas id="riskChart" class="hidden"></canvas>
+                        </div>
+                        
+                        <!-- Análisis Kelly -->
+                        <div class="chart-wrapper" id="kellyChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>🎲</span> ANÁLISIS DE FRACCIÓN DE KELLY
+                            </div>
+                            <div class="chart-placeholder" id="kellyPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-purple); opacity: 0.3;">📊</div>
+                                <div>Gráfica Kelly se generará aquí</div>
+                            </div>
+                            <canvas id="kellyChart" class="hidden"></canvas>
+                        </div>
+                        
+                        <!-- Crecimiento Esperado -->
+                        <div class="chart-wrapper" id="growthChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>📈</span> CRECIMIENTO ESPERADO DE CAPITAL
+                            </div>
+                            <div class="chart-placeholder" id="growthPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-green); opacity: 0.3;">📊</div>
+                                <div>Proyección de crecimiento se generará aquí</div>
+                            </div>
+                            <canvas id="growthChart" class="hidden"></canvas>
+                        </div>
+
+                        <!-- Simulación Drawdown -->
+                        <div class="chart-wrapper" id="drawdownChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>📉</span> SIMULACIÓN DE DRAWDOWN
+                            </div>
+                            <div class="chart-placeholder" id="drawdownPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-yellow); opacity: 0.3;">📊</div>
+                                <div>Análisis de drawdown se generará aquí</div>
+                            </div>
+                            <canvas id="drawdownChart" class="hidden"></canvas>
+                        </div>
+
+                        <!-- Comparación Estrategias -->
+                        <div class="chart-wrapper" id="comparisonChartWrapper" style="display: none;">
+                            <div class="chart-title">
+                                <span>⚖️</span> COMPARACIÓN DE ESTRATEGIAS
+                            </div>
+                            <div class="chart-placeholder" id="comparisonPlaceholder">
+                                <div style="font-size: 48px; color: var(--neon-blue); opacity: 0.3;">📊</div>
+                                <div>Comparación de estrategias se generará aquí</div>
+                            </div>
+                            <canvas id="comparisonChart" class="hidden"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exportación y Resumen -->
+                <div class="export-panel">
+                    <div class="section-title">
+                        <span>📤</span> EXPORTAR RESULTADOS
+                    </div>
+                    
+                    <div class="export-formats">
+                        <button class="format-btn active" data-format="account">
+                            <span>💰</span> Gestión de Cuenta
+                        </button>
+                        <button class="format-btn" data-format="strategy">
+                            <span>🎯</span> Estrategia Completa
+                        </button>
+                        <button class="format-btn" data-format="summary">
+                            <span>📋</span> Resumen PDF
+                        </button>
+                        <button class="format-btn" data-format="next">
+                            <span>➡️</span> Para Siguiente Programa
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-primary" id="exportBtn" disabled>
+                            <span>💾</span> Exportar Seleccionado
+                        </button>
+                        <button class="btn btn-success" id="optimizeBtn" disabled>
+                            <span>⚡</span> Optimizar Automáticamente
+                        </button>
+                        <button class="btn btn-warning" id="monitorBtn">
+                            <span>👁️</span> Monitorear en Tiempo Real
+                        </button>
+                    </div>
+
+                    <!-- Resumen de Gestión -->
+                    <div class="data-stats" style="margin-top: 15px;">
+                        <div class="stat-item">
+                            <span class="stat-label">Estrategia activa:</span>
+                            <span class="stat-value" id="activeStrategy">Sin definir</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Fracción Kelly:</span>
+                            <span class="stat-value" id="currentKelly">0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Riesgo máximo:</span>
+                            <span class="stat-value" id="maxRisk">0%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Último cálculo:</span>
+                            <span class="stat-value" id="lastCalculation">Nunca</span>
+                        </div>
+                    </div>
+
+                    <!-- Detalles de Exportación -->
+                    <div class="recommendation-box" style="margin-top: 15px;">
+                        <div class="recommendation-title">
+                            <span>🔧</span> DETALLES DE EXPORTACIÓN
+                        </div>
+                        <div class="recommendation-content" id="exportDetails">
+                            <strong>Formato para siguiente programa:</strong><br>
+                            • Parámetros de gestión optimizados<br>
+                            • Estrategia de riesgo calculada<br>
+                            • Tamaños de posición recomendados<br>
+                            • Límites de drawdown configurados<br>
+                            <small>El siguiente programa usará estos datos para ejecución real o simulación avanzada.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONFIGURACIÓN =====
+        const STORAGE_KEY = 'account_manager_v1';
+        const MAX_CAPITAL = 10000000;
+        const MIN_CAPITAL = 100;
+        
+        // ===== VARIABLES GLOBALES =====
+        let importedData = null;
+        let accountData = {
+            capital: 0,
+            riskPerTrade: 0,
+            winRate: 0,
+            riskReward: 0,
+            kellyFraction: 0.25,
+            maxDrawdown: 20,
+            strategy: 'moderate',
+            volatility: 0.3
+        };
+        
+        let calculationResults = null;
+        let currentCharts = {};
+        let selectedFormat = 'account';
+        let isCalculating = false;
+        let currentStrategy = 'moderate';
+
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('GESTIÓN DE CUENTA - Sistema iniciado');
+            
+            // Cargar datos guardados
+            loadSavedData();
+            
+            // Configurar event listeners
+            setupEventListeners();
+            
+            // Configurar UI inicial
+            setupInitialUI();
+            
+            // Configurar sliders manuales
+            setupManualSliders();
+        });
+
+        // ===== CONFIGURACIÓN DE UI =====
+        function setupInitialUI() {
+            // Configurar file type buttons
+            document.querySelectorAll('.file-type-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'INPUT') return;
+                    
+                    const fileType = this.dataset.type;
+                    
+                    // Handle special cases
+                    if (fileType === 'manual') {
+                        showManualConfig();
+                        return;
+                    }
+                    
+                    if (fileType === 'example') {
+                        loadExampleData();
+                        return;
+                    }
+                    
+                    // For file inputs
+                    document.querySelectorAll('.file-type-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById(`${fileType}Input`).click();
+                });
+            });
+            
+            // Configurar format buttons
+            document.querySelectorAll('.format-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    selectedFormat = this.dataset.format;
+                    document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Configurar chart tabs
+            document.querySelectorAll('.chart-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const chartType = this.dataset.chart;
+                    showChart(chartType);
+                    
+                    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Configurar estrategias de riesgo
+            document.querySelectorAll('.strategy-badge').forEach(badge => {
+                badge.addEventListener('click', function() {
+                    currentStrategy = this.dataset.strategy;
+                    document.querySelectorAll('.strategy-badge').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    updateStrategy(currentStrategy);
+                    showNotification(`Estrategia cambiada a: ${currentStrategy}`, 'info');
+                });
+            });
+            
+            // Configurar toggles
+            document.getElementById('dynamicRiskToggle').addEventListener('change', function() {
+                document.getElementById('dynamicRiskSettings').style.display = this.checked ? 'block' : 'none';
+                if (this.checked) updateDynamicRiskSettings();
+            });
+            
+            document.getElementById('volatilityAdjustToggle').addEventListener('change', function() {
+                document.getElementById('volatilityPanel').style.display = this.checked ? 'block' : 'none';
+                if (this.checked) updateVolatilityDisplay();
+            });
+            
+            // Configurar Kelly slider
+            const kellySlider = document.getElementById('kellyFractionSlider');
+            const kellyValue = document.getElementById('kellyFractionValue');
+            kellySlider.addEventListener('input', function() {
+                kellyValue.textContent = this.value + '%';
+                accountData.kellyFraction = this.value / 100;
+            });
+            
+            // Configurar drawdown slider
+            const ddSlider = document.getElementById('maxDrawdownSlider');
+            const ddValue = document.getElementById('maxDrawdownValue');
+            ddSlider.addEventListener('input', function() {
+                ddValue.textContent = this.value + '%';
+                accountData.maxDrawdown = this.value / 100;
+            });
+        }
+
+        function setupManualSliders() {
+            // Slider riesgo manual
+            const riskSlider = document.getElementById('manualRiskSlider');
+            const riskValue = document.getElementById('manualRiskValue');
+            riskSlider.addEventListener('input', function() {
+                riskValue.textContent = parseFloat(this.value).toFixed(1) + '%';
+            });
+            
+            // Slider win rate manual
+            const winRateSlider = document.getElementById('manualWinRateSlider');
+            const winRateValue = document.getElementById('manualWinRateValue');
+            winRateSlider.addEventListener('input', function() {
+                winRateValue.textContent = this.value + '%';
+            });
+            
+            // Slider risk/reward manual
+            const rrSlider = document.getElementById('manualRRSlider');
+            const rrValue = document.getElementById('manualRRValue');
+            rrSlider.addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                rrValue.textContent = value < 1 ? `${value.toFixed(1)}:1` : `1:${value.toFixed(1)}`;
+            });
+        }
+
+        function setupEventListeners() {
+            // Input files
+            document.getElementById('parametricInput').addEventListener('change', (e) => handleFileImport(e, 'parametric'));
+            document.getElementById('portfolioInput').addEventListener('change', (e) => handleFileImport(e, 'portfolio'));
+            
+            // Botones
+            document.getElementById('applyManualConfig').addEventListener('click', applyManualConfiguration);
+            document.getElementById('calculateRiskBtn').addEventListener('click', calculateAccountManagement);
+            document.getElementById('resetBtn').addEventListener('click', resetAllData);
+            document.getElementById('exportBtn').addEventListener('click', exportData);
+            document.getElementById('optimizeBtn').addEventListener('click', optimizeAutomatically);
+            document.getElementById('monitorBtn').addEventListener('click', startMonitoring);
+        }
+
+        function showManualConfig() {
+            document.querySelectorAll('.file-type-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('manualBtn').classList.add('active');
+            document.getElementById('manualConfig').style.display = 'block';
+        }
+
+        // ===== FUNCIONES DE IMPORTACIÓN =====
+        function handleFileImport(event, fileType) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            console.log(`📥 Importando archivo ${fileType}:`, file.name);
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    const data = JSON.parse(content);
+                    
+                    if (fileType === 'parametric') {
+                        processParametricData(data, file.name);
+                    } else if (fileType === 'portfolio') {
+                        processPortfolioData(data, file.name);
+                    }
+                    
+                    updateImportStats(file, fileType);
+                    enableCalculationButton();
+                    showNotification(`Archivo ${file.name} importado exitosamente`, 'success');
+                    
+                } catch (error) {
+                    console.error('Error importando archivo:', error);
+                    showNotification('Error importando archivo: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function processParametricData(data, filename) {
+            console.log('Procesando datos del simulador paramétrico:', data);
+            
+            importedData = data;
+            
+            // Extraer datos del simulador paramétrico
+            if (data.parametricSimulation) {
+                const simData = data.parametricSimulation;
+                
+                // Para simulación única
+                if (simData.results) {
+                    accountData.capital = simData.results.initialCapital || 10000;
+                    accountData.riskPerTrade = simData.parameters?.riskPerTrade || 0.02;
+                    accountData.winRate = simData.results.statistics?.actualWinRate / 100 || 0.55;
+                    accountData.riskReward = simData.parameters?.riskReward || 2;
+                }
+                // Para simulaciones múltiples
+                else if (simData.baseParameters) {
+                    accountData.capital = simData.baseParameters.initialCapital || 10000;
+                    accountData.riskPerTrade = simData.baseParameters.riskPerTrade || 0.02;
+                    accountData.winRate = simData.simulations?.[0]?.results?.statistics?.actualWinRate / 100 || 0.55;
+                    accountData.riskReward = simData.baseParameters.riskReward || 2;
+                }
+                
+                // Calcular volatilidad basada en resultados
+                if (simData.results?.statistics?.returns) {
+                    const returns = simData.results.statistics.returns;
+                    if (returns.length > 1) {
+                        accountData.volatility = ss.standardDeviation(returns);
+                    }
+                }
+            }
+            
+            updateAccountDisplay();
+            calculateKellyFraction();
+        }
+
+        function processPortfolioData(data, filename) {
+            console.log('Procesando datos de portafolio:', data);
+            
+            importedData = data;
+            
+            // Asumir estructura estándar de portafolio
+            if (data.capital !== undefined) {
+                accountData.capital = data.capital;
+                accountData.riskPerTrade = data.riskPerTrade || 0.02;
+                accountData.winRate = data.winRate || 0.55;
+                accountData.riskReward = data.riskReward || 2;
+                accountData.volatility = data.volatility || 0.3;
+            }
+            
+            updateAccountDisplay();
+            calculateKellyFraction();
+        }
+
+        function loadExampleData() {
+            console.log('Cargando datos de ejemplo...');
+            
+            // Datos de ejemplo realistas
+            importedData = {
+                source: 'Ejemplo Rápido',
+                example: true,
+                data: {
+                    capital: 25000,
+                    riskPerTrade: 0.015,
+                    winRate: 0.48,
+                    riskReward: 2.5,
+                    volatility: 0.25,
+                    sharpeRatio: 1.2,
+                    maxDrawdown: 15
+                }
+            };
+            
+            accountData.capital = 25000;
+            accountData.riskPerTrade = 0.015;
+            accountData.winRate = 0.48;
+            accountData.riskReward = 2.5;
+            accountData.volatility = 0.25;
+            
+            updateImportStats({name: 'Ejemplo Rápido.json'}, 'example');
+            updateAccountDisplay();
+            calculateKellyFraction();
+            enableCalculationButton();
+            
+            showNotification('Datos de ejemplo cargados exitosamente', 'success');
+        }
+
+        function applyManualConfiguration() {
+            const capital = parseFloat(document.getElementById('manualCapital').value);
+            const riskPerTrade = parseFloat(document.getElementById('manualRiskSlider').value) / 100;
+            const winRate = parseFloat(document.getElementById('manualWinRateSlider').value) / 100;
+            const riskReward = parseFloat(document.getElementById('manualRRSlider').value);
+            
+            if (capital < MIN_CAPITAL || capital > MAX_CAPITAL) {
+                showNotification(`Capital debe estar entre $${MIN_CAPITAL} y $${MAX_CAPITAL.toLocaleString()}`, 'error');
+                return;
+            }
+            
+            importedData = {
+                source: 'Configuración Manual',
+                manual: true,
+                data: {
+                    capital,
+                    riskPerTrade,
+                    winRate,
+                    riskReward,
+                    timestamp: new Date().toISOString()
+                }
+            };
+            
+            accountData.capital = capital;
+            accountData.riskPerTrade = riskPerTrade;
+            accountData.winRate = winRate;
+            accountData.riskReward = riskReward;
+            accountData.volatility = 0.3; // Valor por defecto
+            
+            updateAccountDisplay();
+            calculateKellyFraction();
+            enableCalculationButton();
+            
+            showNotification('Configuración manual aplicada exitosamente', 'success');
+        }
+
+        function updateImportStats(file, fileType) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileType').textContent = fileType === 'parametric' ? 'Simulador Paramétrico' : 
+                                                           fileType === 'portfolio' ? 'Portafolio' : 
+                                                           fileType === 'example' ? 'Ejemplo' : 'Manual';
+            document.getElementById('dataStatus').textContent = 'Cargado ✓';
+            document.getElementById('importStatus').textContent = 'Listo para análisis';
+            document.getElementById('importStatus').style.color = 'var(--neon-green)';
+            
+            document.getElementById('systemStatus').textContent = 'Datos cargados';
+            document.getElementById('systemStatus').style.color = 'var(--neon-green)';
+            document.getElementById('connectionStatus').textContent = 'Conectado';
+        }
+
+        // ===== CÁLCULOS DE GESTIÓN =====
+        function calculateAccountManagement() {
+            if (isCalculating) return;
+            
+            try {
+                isCalculating = true;
+                const startTime = performance.now();
+                
+                document.getElementById('calculateRiskBtn').disabled = true;
+                document.getElementById('calculateRiskBtn').innerHTML = '<span class="pulse">🧮</span> Calculando...';
+                
+                showNotification('Calculando gestión de cuenta...', 'info');
+                
+                setTimeout(() => {
+                    try {
+                        // Calcular todas las métricas
+                        calculationResults = {
+                            timestamp: new Date().toISOString(),
+                            accountData: {...accountData},
+                            calculations: {}
+                        };
+                        
+                        // 1. Calcular fracción de Kelly
+                        const kellyFull = calculateFullKelly();
+                        const kellyFraction = accountData.kellyFraction;
+                        
+                        // 2. Calcular riesgo actual
+                        const currentRisk = accountData.riskPerTrade * 100;
+                        const accountRisk = currentRisk * kellyFraction;
+                        
+                        // 3. Calcular probabilidad de ruina
+                        const ruinProbability = calculateRuinProbability();
+                        
+                        // 4. Calcular tamaño de posición recomendado
+                        const positionSize = calculatePositionSize();
+                        
+                        // 5. Calcular riesgo dinámico si está activado
+                        let dynamicRisk = currentRisk;
+                        if (document.getElementById('dynamicRiskToggle').checked) {
+                            dynamicRisk = calculateDynamicRisk();
+                        }
+                        
+                        // 6. Ajustar por volatilidad si está activado
+                        let volatilityAdjustment = 1;
+                        if (document.getElementById('volatilityAdjustToggle').checked) {
+                            volatilityAdjustment = calculateVolatilityAdjustment();
+                        }
+                        
+                        // Actualizar resultados
+                        calculationResults.calculations = {
+                            kellyFull: kellyFull * 100,
+                            kellyFraction: kellyFraction * 100,
+                            currentRisk: currentRisk,
+                            accountRisk: accountRisk,
+                            ruinProbability: ruinProbability,
+                            positionSize: positionSize,
+                            dynamicRisk: dynamicRisk,
+                            volatilityAdjustment: volatilityAdjustment,
+                            finalRisk: dynamicRisk * volatilityAdjustment,
+                            expectedGrowth: calculateExpectedGrowth(),
+                            maxConsecutiveLosses: calculateMaxConsecutiveLosses()
+                        };
+                        
+                        // Actualizar UI con resultados
+                        updateResultsUI();
+                        
+                        // Generar gráficas
+                        generateAllCharts();
+                        
+                        // Habilitar exportación
+                        document.getElementById('exportBtn').disabled = false;
+                        document.getElementById('optimizeBtn').disabled = false;
+                        
+                        const endTime = performance.now();
+                        calculationResults.executionTime = endTime - startTime;
+                        
+                        showNotification(`Cálculos completados en ${calculationResults.executionTime.toFixed(0)}ms`, 'success');
+                        
+                    } catch (error) {
+                        console.error('Error en cálculos:', error);
+                        showNotification('Error en cálculos: ' + error.message, 'error');
+                    } finally {
+                        isCalculating = false;
+                        document.getElementById('calculateRiskBtn').disabled = false;
+                        document.getElementById('calculateRiskBtn').innerHTML = '<span>🧮</span> Calcular Gestión';
+                    }
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error iniciando cálculos:', error);
+                showNotification('Error: ' + error.message, 'error');
+                isCalculating = false;
+            }
+        }
+
+        function calculateFullKelly() {
+            // Fórmula de Kelly: f* = p - q/b
+            // donde p = probabilidad de ganar, q = 1-p, b = ratio riesgo/recompensa
+            const p = accountData.winRate;
+            const q = 1 - p;
+            const b = accountData.riskReward;
+            
+            let kelly = (p * b - q) / b;
+            
+            // Ajustar por volatilidad
+            kelly = kelly * (1 - accountData.volatility);
+            
+            // Limitar entre 0 y 0.5 (50%)
+            return Math.max(0, Math.min(0.5, kelly));
+        }
+
+        function calculateRuinProbability() {
+            // Fórmula simplificada de probabilidad de ruina
+            const edge = (accountData.winRate * accountData.riskReward) - ((1 - accountData.winRate) * 1);
+            const riskPerTrade = accountData.riskPerTrade * accountData.kellyFraction;
+            
+            if (edge <= 0) return 100;
+            
+            const riskOfRuin = Math.exp(-2 * edge * (1 / riskPerTrade));
+            return Math.min(100, riskOfRuin * 100);
+        }
+
+        function calculatePositionSize() {
+            // Tamaño de posición basado en Kelly y riesgo
+            const kellyFraction = accountData.kellyFraction;
+            const riskAmount = accountData.capital * accountData.riskPerTrade * kellyFraction;
+            
+            // Para un riesgo/recompensa dado, calcular tamaño
+            const stopLossDistance = 1; // Asumir 1 unidad de riesgo
+            return riskAmount / stopLossDistance;
+        }
+
+        function calculateDynamicRisk() {
+            // Reducir riesgo basado en drawdown máximo permitido
+            const maxDD = accountData.maxDrawdown;
+            const currentRisk = accountData.riskPerTrade;
+            
+            // Reducir riesgo progresivamente a medida que nos acercamos al drawdown máximo
+            // En una implementación real, esto se basaría en drawdown actual
+            return currentRisk * (1 - (maxDD * 0.5));
+        }
+
+        function calculateVolatilityAdjustment() {
+            // Ajustar riesgo basado en volatilidad del sistema
+            const volatility = accountData.volatility;
+            
+            if (volatility < 0.2) return 1.2; // Aumentar riesgo si volatilidad baja
+            if (volatility < 0.4) return 1.0; // Riesgo normal
+            if (volatility < 0.6) return 0.8; // Reducir riesgo
+            return 0.6; // Reducir significativamente
+        }
+
+        function calculateExpectedGrowth() {
+            // Crecimiento esperado por trade
+            const p = accountData.winRate;
+            const b = accountData.riskReward;
+            const risk = accountData.riskPerTrade * accountData.kellyFraction;
+            
+            return (p * b * risk - (1 - p) * risk) * 100; // En porcentaje
+        }
+
+        function calculateMaxConsecutiveLosses() {
+            // Calcular máximo de pérdidas consecutivas esperadas
+            const p = accountData.winRate;
+            const confidence = 0.95; // 95% de confianza
+            
+            // Fórmula: log(1-confianza) / log(1-p)
+            return Math.ceil(Math.log(1 - confidence) / Math.log(1 - p));
+        }
+
+        function updateStrategy(strategy) {
+            // Ajustar configuración basada en estrategia seleccionada
+            const kellySlider = document.getElementById('kellyFractionSlider');
+            
+            switch(strategy) {
+                case 'conservative':
+                    kellySlider.value = 12;
+                    accountData.kellyFraction = 0.12;
+                    document.getElementById('dynamicRiskToggle').checked = true;
+                    document.getElementById('volatilityAdjustToggle').checked = true;
+                    break;
+                case 'moderate':
+                    kellySlider.value = 25;
+                    accountData.kellyFraction = 0.25;
+                    document.getElementById('dynamicRiskToggle').checked = true;
+                    document.getElementById('volatilityAdjustToggle').checked = false;
+                    break;
+                case 'aggressive':
+                    kellySlider.value = 40;
+                    accountData.kellyFraction = 0.40;
+                    document.getElementById('dynamicRiskToggle').checked = false;
+                    document.getElementById('volatilityAdjustToggle').checked = false;
+                    break;
+            }
+            
+            kellySlider.dispatchEvent(new Event('input'));
+            document.getElementById('dynamicRiskToggle').dispatchEvent(new Event('change'));
+            document.getElementById('volatilityAdjustToggle').dispatchEvent(new Event('change'));
+        }
+
+        function calculateKellyFraction() {
+            const kellyFull = calculateFullKelly();
+            document.getElementById('kellyFullValue').textContent = (kellyFull * 100).toFixed(1) + '%';
+            
+            // Recomendar fracción basada en estrategia
+            let recommended;
+            switch(currentStrategy) {
+                case 'conservative': recommended = kellyFull * 0.25; break;
+                case 'moderate': recommended = kellyFull * 0.5; break;
+                case 'aggressive': recommended = kellyFull * 0.75; break;
+                default: recommended = kellyFull * 0.5;
+            }
+            
+            document.getElementById('kellyRecommended').textContent = (recommended * 100).toFixed(1) + '%';
+            
+            // Habilitar slider Kelly
+            document.getElementById('kellyFractionSlider').disabled = false;
+            document.getElementById('kellyFractionSlider').max = Math.min(100, Math.floor(kellyFull * 100 * 2));
+            document.getElementById('kellyFractionSlider').value = Math.floor(recommended * 100);
+            document.getElementById('kellyFractionSlider').dispatchEvent(new Event('input'));
+        }
+
+        function updateDynamicRiskSettings() {
+            // Actualizar configuración de riesgo dinámico
+            const maxDD = accountData.maxDrawdown * 100;
+            document.getElementById('maxDrawdownSlider').value = maxDD;
+            document.getElementById('maxDrawdownValue').textContent = maxDD + '%';
+        }
+
+        function updateVolatilityDisplay() {
+            // Actualizar visualización de volatilidad
+            const volatility = accountData.volatility;
+            const level = document.getElementById('volatilityLevel');
+            
+            let width, className;
+            if (volatility < 0.3) {
+                width = 30;
+                className = 'low';
+            } else if (volatility < 0.6) {
+                width = 60;
+                className = 'medium';
+            } else {
+                width = 90;
+                className = 'high';
+            }
+            
+            level.style.width = width + '%';
+            level.className = 'volatility-level ' + className;
+        }
+
+        // ===== ACTUALIZACIÓN DE UI =====
+        function updateAccountDisplay() {
+            // 7.1.1 Capital actual
+            document.getElementById('currentCapitalValue').textContent = 
+                '$' + accountData.capital.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            
+            // 7.1.2 Riesgo actual
+            const riskPercent = accountData.riskPerTrade * 100;
+            document.getElementById('currentRiskValue').textContent = 
+                riskPercent.toFixed(1) + '%';
+            
+            // Actualizar Kelly
+            calculateKellyFraction();
+            
+            // Actualizar estado de cuenta
+            updateAccountStatus();
+        }
+
+        function updateAccountStatus() {
+            const indicator = document.getElementById('accountStatusIndicator');
+            const statusText = document.getElementById('accountStatusText');
+            
+            if (accountData.capital === 0) {
+                indicator.className = 'status-indicator';
+                statusText.textContent = 'Estado de cuenta: Sin datos';
+                return;
+            }
+            
+            // Evaluar salud de la cuenta basada en múltiples factores
+            const riskScore = accountData.riskPerTrade * accountData.kellyFraction;
+            const winRateScore = accountData.winRate;
+            const overallScore = (winRateScore * 2 - riskScore * 10) * 100;
+            
+            if (overallScore > 30) {
+                indicator.className = 'status-indicator safe';
+                statusText.textContent = 'Estado de cuenta: Óptima';
+                statusText.style.color = 'var(--neon-green)';
+            } else if (overallScore > 10) {
+                indicator.className = 'status-indicator warning';
+                statusText.textContent = 'Estado de cuenta: Moderada';
+                statusText.style.color = 'var(--neon-yellow)';
+            } else {
+                indicator.className = 'status-indicator danger';
+                statusText.textContent = 'Estado de cuenta: Riesgo alto';
+                statusText.style.color = 'var(--neon-red)';
+            }
+        }
+
+        function updateResultsUI() {
+            if (!calculationResults) return;
+            
+            const calc = calculationResults.calculations;
+            
+            // 7.1.3 Probabilidad de ruina
+            document.getElementById('ruinProbabilityValue').textContent = 
+                calc.ruinProbability.toFixed(1) + '%';
+            
+            // 7.1.4 Tamaño recomendado
+            document.getElementById('recommendedSizeValue').textContent = 
+                '$' + calc.positionSize.toFixed(0);
+            
+            // Actualizar recomendación del sistema
+            updateSystemRecommendation(calc);
+            
+            // Actualizar resumen
+            document.getElementById('activeStrategy').textContent = 
+                currentStrategy.charAt(0).toUpperCase() + currentStrategy.slice(1);
+            document.getElementById('currentKelly').textContent = 
+                (accountData.kellyFraction * 100).toFixed(1) + '%';
+            document.getElementById('maxRisk').textContent = 
+                calc.finalRisk.toFixed(2) + '%';
+            document.getElementById('lastCalculation').textContent = 
+                new Date().toLocaleTimeString();
+            
+            // Actualizar Kelly Full
+            document.getElementById('kellyFullValue').textContent = 
+                calc.kellyFull.toFixed(1) + '%';
+        }
+
+        function updateSystemRecommendation(calc) {
+            const recommendation = document.getElementById('systemRecommendation');
+            let html = '';
+            
+            if (calc.ruinProbability > 30) {
+                html = `<span style="color: var(--neon-red);">⚠️ ALTO RIESGO DE RUINA</span><br>`;
+                html += `Reducir fracción Kelly a ${Math.max(5, calc.kellyFull * 0.3).toFixed(1)}% o menos.`;
+            } else if (calc.ruinProbability > 10) {
+                html = `<span style="color: var(--neon-yellow);">⚠️ RIESGO MODERADO</span><br>`;
+                html += `Mantener fracción Kelly actual (${calc.kellyFraction.toFixed(1)}%) y monitorear drawdown.`;
+            } else {
+                html = `<span style="color: var(--neon-green);">✅ RIESGO CONTROLADO</span><br>`;
+                html += `Sistema estable. Puede considerar aumentar tamaño gradualmente.`;
+            }
+            
+            html += `<br><small>Tamaño de posición recomendado: $${calc.positionSize.toFixed(0)} por trade</small>`;
+            recommendation.innerHTML = html;
+        }
+
+        // ===== VISUALIZACIÓN =====
+        function generateAllCharts() {
+            if (!calculationResults) return;
+            
+            try {
+                // Destruir gráficas existentes
+                Object.values(currentCharts).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+                currentCharts = {};
+                
+                // Generar todas las gráficas
+                generateRiskChart();
+                generateKellyChart();
+                generateGrowthChart();
+                generateDrawdownChart();
+                generateComparisonChart();
+                
+                showNotification('Gráficas generadas', 'success');
+                
+            } catch (error) {
+                console.error('Error generando gráficas:', error);
+                showNotification('Error generando gráficas', 'error');
+            }
+        }
+
+        function showChart(chartType) {
+            // Ocultar todas las gráficas
+            document.querySelectorAll('.chart-wrapper').forEach(wrapper => {
+                wrapper.style.display = 'none';
+            });
+            
+            // Mostrar la gráfica seleccionada
+            const wrapper = document.getElementById(chartType + 'ChartWrapper');
+            if (wrapper) {
+                wrapper.style.display = 'block';
+                
+                // Redimensionar y actualizar la gráfica si existe
+                setTimeout(() => {
+                    const chart = currentCharts[chartType];
+                    if (chart) {
+                        resizeChartCanvas(chartType + 'Chart');
+                        chart.resize();
+                        chart.update();
+                    }
+                }, 50);
+            }
+        }
+
+        function resizeChartCanvas(chartId) {
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return null;
+            
+            const wrapper = canvas.closest('.chart-wrapper');
+            if (!wrapper) return null;
+            
+            const availableWidth = wrapper.clientWidth - 30;
+            const availableHeight = wrapper.clientHeight - 60;
+            
+            canvas.width = Math.max(availableWidth, 300);
+            canvas.height = Math.max(availableHeight, 200);
+            
+            return { width: canvas.width, height: canvas.height };
+        }
+
+        function generateRiskChart() {
+            const canvas = document.getElementById('riskChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('riskPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('riskChart');
+            
+            // Datos para diferentes estrategias
+            const strategies = ['Conservadora', 'Moderada', 'Agresiva'];
+            const riskLevels = [accountData.riskPerTrade * 0.3, accountData.riskPerTrade * 0.6, accountData.riskPerTrade * 1.0];
+            const growthRates = riskLevels.map(r => calculateExpectedGrowthForRisk(r));
+            const ruinProbabilities = riskLevels.map(r => calculateRuinProbabilityForRisk(r));
+            
+            currentCharts.risk = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: strategies,
+                    datasets: [
+                        {
+                            label: 'Riesgo por Trade (%)',
+                            data: riskLevels.map(r => r * 100),
+                            backgroundColor: 'rgba(255, 85, 85, 0.6)',
+                            borderColor: 'rgba(255, 85, 85, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Crecimiento Esperado (%)',
+                            data: growthRates,
+                            backgroundColor: 'rgba(0, 255, 136, 0.6)',
+                            borderColor: 'rgba(0, 255, 136, 1)',
+                            borderWidth: 1,
+                            type: 'line',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Análisis de Riesgo por Estrategia',
+                            color: '#ff5555',
+                            font: { size: 14 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const index = context.dataIndex;
+                                    return `Prob. Ruina: ${ruinProbabilities[index].toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Riesgo (%)',
+                                color: '#ff5555'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { color: '#dfefff' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Crecimiento (%)',
+                                color: '#00ff88'
+                            },
+                            grid: { display: false },
+                            ticks: { color: '#00ff88' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateKellyChart() {
+            const canvas = document.getElementById('kellyChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('kellyPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('kellyChart');
+            
+            // Datos para gráfica Kelly
+            const fractions = [10, 25, 50, 75, 100]; // Porcentajes de Kelly
+            const growthRates = fractions.map(f => {
+                const kellyFraction = f / 100;
+                return calculateExpectedGrowthForKelly(kellyFraction);
+            });
+            const ruinProbabilities = fractions.map(f => {
+                const kellyFraction = f / 100;
+                return calculateRuinProbabilityForKelly(kellyFraction);
+            });
+            
+            currentCharts.kelly = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: fractions.map(f => f + '%'),
+                    datasets: [
+                        {
+                            label: 'Crecimiento Esperado (%)',
+                            data: growthRates,
+                            borderColor: 'rgba(0, 255, 136, 1)',
+                            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Probabilidad de Ruina (%)',
+                            data: ruinProbabilities,
+                            borderColor: 'rgba(255, 85, 85, 1)',
+                            backgroundColor: 'rgba(255, 85, 85, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Análisis de Fracción de Kelly',
+                            color: '#a855f7',
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Crecimiento (%)',
+                                color: '#00ff88'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { color: '#dfefff' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Prob. Ruina (%)',
+                                color: '#ff5555'
+                            },
+                            grid: { display: false },
+                            ticks: { color: '#ff5555' }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Fracción de Kelly',
+                                color: '#a855f7'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateGrowthChart() {
+            const canvas = document.getElementById('growthChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('growthPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('growthChart');
+            
+            // Simular crecimiento de capital
+            const periods = 50;
+            const growthData = [];
+            let capital = accountData.capital;
+            
+            for (let i = 0; i < periods; i++) {
+                // Simular crecimiento con variabilidad
+                const growth = calculateExpectedGrowth() / 100 * capital;
+                const volatility = accountData.volatility * growth * (Math.random() - 0.5);
+                capital += growth + volatility;
+                growthData.push(capital);
+            }
+            
+            currentCharts.growth = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: periods}, (_, i) => i + 1),
+                    datasets: [{
+                        label: 'Proyección de Capital',
+                        data: growthData,
+                        borderColor: 'rgba(0, 255, 136, 1)',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Proyección de Crecimiento de Capital',
+                            color: '#00ff88',
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Capital ($)',
+                                color: '#00ff88'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Número de Trades',
+                                color: '#00ff88'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateDrawdownChart() {
+            const canvas = document.getElementById('drawdownChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('drawdownPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('drawdownChart');
+            
+            // Simular drawdown
+            const periods = 100;
+            const equity = [accountData.capital];
+            const drawdowns = [0];
+            let maxEquity = accountData.capital;
+            
+            for (let i = 1; i < periods; i++) {
+                // Simular equity con drawdowns
+                const change = (Math.random() - 0.48) * accountData.riskPerTrade * accountData.capital;
+                const newEquity = equity[i-1] + change;
+                equity.push(newEquity);
+                maxEquity = Math.max(maxEquity, newEquity);
+                const drawdown = ((maxEquity - newEquity) / maxEquity) * 100;
+                drawdowns.push(drawdown);
+            }
+            
+            currentCharts.drawdown = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: periods}, (_, i) => i + 1),
+                    datasets: [
+                        {
+                            label: 'Equity',
+                            data: equity,
+                            borderColor: 'rgba(0, 240, 255, 1)',
+                            backgroundColor: 'rgba(0, 240, 255, 0.1)',
+                            borderWidth: 1,
+                            yAxisID: 'y',
+                            fill: true
+                        },
+                        {
+                            label: 'Drawdown (%)',
+                            data: drawdowns,
+                            borderColor: 'rgba(255, 85, 85, 1)',
+                            backgroundColor: 'rgba(255, 85, 85, 0.1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1',
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Simulación de Drawdown',
+                            color: '#ff8c00',
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Equity ($)',
+                                color: '#00f0ff'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Drawdown (%)',
+                                color: '#ff5555'
+                            },
+                            grid: { display: false },
+                            ticks: { 
+                                color: '#ff5555',
+                                callback: function(value) {
+                                    return value.toFixed(1) + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Trades',
+                                color: '#ff8c00'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateComparisonChart() {
+            const canvas = document.getElementById('comparisonChart');
+            const ctx = canvas.getContext('2d');
+            
+            document.getElementById('comparisonPlaceholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            resizeChartCanvas('comparisonChart');
+            
+            // Comparar diferentes estrategias
+            const strategies = ['Sin Gestión', 'Kelly 25%', 'Kelly 50%', 'Dinámico', 'Completo'];
+            const finalCapitals = strategies.map((s, i) => {
+                let capital = accountData.capital;
+                for (let j = 0; j < 100; j++) {
+                    let risk = accountData.riskPerTrade;
+                    if (i === 1) risk *= 0.25;
+                    if (i === 2) risk *= 0.5;
+                    if (i === 3) risk *= (0.8 + Math.random() * 0.4); // Dinámico
+                    if (i === 4) risk *= 0.25 * (1 - accountData.volatility); // Completo
+                    
+                    const change = (Math.random() < accountData.winRate) ? 
+                        risk * accountData.riskReward * capital : 
+                        -risk * capital;
+                    capital += change;
+                }
+                return capital;
+            });
+            
+            currentCharts.comparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: strategies,
+                    datasets: [{
+                        label: 'Capital Final después de 100 trades',
+                        data: finalCapitals,
+                        backgroundColor: [
+                            'rgba(255, 85, 85, 0.6)',
+                            'rgba(255, 255, 0, 0.6)',
+                            'rgba(0, 240, 255, 0.6)',
+                            'rgba(0, 255, 136, 0.6)',
+                            'rgba(168, 85, 247, 0.6)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 85, 85, 1)',
+                            'rgba(255, 255, 0, 1)',
+                            'rgba(0, 240, 255, 1)',
+                            'rgba(0, 255, 136, 1)',
+                            'rgba(168, 85, 247, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#dfefff' }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Comparación de Estrategias de Gestión',
+                            color: '#6f5cff',
+                            font: { size: 14 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Capital Final ($)',
+                                color: '#6f5cff'
+                            },
+                            grid: { color: 'rgba(0, 240, 255, 0.1)' },
+                            ticks: { 
+                                color: '#dfefff',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { color: 'rgba(0, 240, 255, 0.05)' },
+                            ticks: { color: '#dfefff' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Funciones auxiliares para cálculos de gráficas
+        function calculateExpectedGrowthForRisk(risk) {
+            const p = accountData.winRate;
+            const b = accountData.riskReward;
+            return (p * b * risk - (1 - p) * risk) * 100;
+        }
+
+        function calculateRuinProbabilityForRisk(risk) {
+            const edge = (accountData.winRate * accountData.riskReward) - ((1 - accountData.winRate) * 1);
+            if (edge <= 0) return 100;
+            const riskOfRuin = Math.exp(-2 * edge * (1 / risk));
+            return Math.min(100, riskOfRuin * 100);
+        }
+
+        function calculateExpectedGrowthForKelly(kellyFraction) {
+            const risk = accountData.riskPerTrade * kellyFraction;
+            return calculateExpectedGrowthForRisk(risk);
+        }
+
+        function calculateRuinProbabilityForKelly(kellyFraction) {
+            const risk = accountData.riskPerTrade * kellyFraction;
+            return calculateRuinProbabilityForRisk(risk);
+        }
+
+        // ===== EXPORTACIÓN =====
+        function exportData() {
+            if (!calculationResults) {
+                showNotification('No hay cálculos para exportar', 'warning');
+                return;
+            }
+            
+            try {
+                let content, filename;
+                
+                const exportData = {
+                    program: 'Gestión de Cuenta v1.0',
+                    timestamp: new Date().toISOString(),
+                    accountData: accountData,
+                    calculations: calculationResults.calculations,
+                    recommendations: {
+                        positionSize: calculationResults.calculations.positionSize,
+                        riskPerTrade: calculationResults.calculations.finalRisk / 100,
+                        kellyFraction: accountData.kellyFraction,
+                        maxDrawdown: accountData.maxDrawdown,
+                        strategy: currentStrategy,
+                        nextSteps: getNextStepsRecommendation()
+                    },
+                    metadata: {
+                        sourceData: importedData?.source || 'Manual',
+                        exportFormat: selectedFormat,
+                        nextProgram: 'Ejecución o Simulación Avanzada'
+                    }
+                };
+                
+                switch(selectedFormat) {
+                    case 'account':
+                        filename = `account_management_${new Date().toISOString().slice(0, 10)}.json`;
+                        content = JSON.stringify(exportData, null, 2);
+                        break;
+                        
+                    case 'strategy':
+                        filename = `trading_strategy_${new Date().toISOString().slice(0, 10)}.json`;
+                        content = JSON.stringify({
+                            strategy: exportData,
+                            rules: generateTradingRules(),
+                            parameters: generateStrategyParameters()
+                        }, null, 2);
+                        break;
+                        
+                    case 'summary':
+                        showNotification('Resumen PDF en desarrollo', 'info');
+                        return;
+                        
+                    case 'next':
+                        filename = `next_program_input_${new Date().toISOString().slice(0, 10)}.json`;
+                        content = JSON.stringify({
+                            managementParameters: exportData.recommendations,
+                            constraints: {
+                                maxRisk: calculationResults.calculations.finalRisk / 100,
+                                maxPositionSize: calculationResults.calculations.positionSize,
+                                maxDailyLoss: accountData.capital * 0.02,
+                                maxDrawdown: accountData.maxDrawdown
+                            },
+                            monitoring: {
+                                checkInterval: 3600, // 1 hora en segundos
+                                alerts: generateAlertsConfig()
+                            }
+                        }, null, 2);
+                        break;
+                        
+                    default:
+                        throw new Error('Formato no soportado');
+                }
+                
+                const blob = new Blob([content], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                showNotification(`Datos exportados como ${selectedFormat}`, 'success');
+                
+            } catch (error) {
+                console.error('Error exportando:', error);
+                showNotification('Error exportando datos', 'error');
+            }
+        }
+
+        function getNextStepsRecommendation() {
+            const calc = calculationResults.calculations;
+            let steps = [];
+            
+            if (calc.ruinProbability > 20) {
+                steps.push("Reducir fracción Kelly inmediatamente");
+                steps.push("Revisar estrategia de entrada");
+                steps.push("Considerar stop loss más ajustado");
+            }
+            
+            if (calc.expectedGrowth < 5) {
+                steps.push("Optimizar ratio riesgo/recompensa");
+                steps.push("Mejorar tasa de aciertos");
+                steps.push("Considerar diversificación");
+            }
+            
+            steps.push("Monitorear drawdown diariamente");
+            steps.push("Reevaluar cada 100 trades o mensualmente");
+            steps.push("Ajustar riesgo según volatilidad del mercado");
+            
+            return steps;
+        }
+
+        function generateTradingRules() {
+            return {
+                entry: {
+                    maxRiskPerTrade: calculationResults.calculations.finalRisk / 100,
+                    minWinRateRequired: accountData.winRate * 0.8,
+                    positionSizing: "Kelly-based dynamic sizing"
+                },
+                exit: {
+                    takeProfit: accountData.riskReward + ":1",
+                    stopLoss: "1:1",
+                    trailingStop: accountData.volatility > 0.4 ? "Yes" : "No"
+                },
+                riskManagement: {
+                    maxDailyLoss: accountData.capital * 0.02,
+                    maxWeeklyLoss: accountData.capital * 0.05,
+                    maxConsecutiveLosses: calculationResults.calculations.maxConsecutiveLosses,
+                    reduceRiskAfterLoss: document.getElementById('dynamicRiskToggle').checked
+                }
+            };
+        }
+
+        function generateStrategyParameters() {
+            return {
+                capital: accountData.capital,
+                riskParameters: {
+                    perTrade: calculationResults.calculations.finalRisk / 100,
+                    kellyFraction: accountData.kellyFraction,
+                    dynamicAdjustment: document.getElementById('dynamicRiskToggle').checked,
+                    volatilityAdjustment: document.getElementById('volatilityAdjustToggle').checked
+                },
+                performance: {
+                    expectedWinRate: accountData.winRate,
+                    expectedRiskReward: accountData.riskReward,
+                    expectedGrowth: calculationResults.calculations.expectedGrowth,
+                    maxDrawdown: accountData.maxDrawdown
+                }
+            };
+        }
+
+        function generateAlertsConfig() {
+            return {
+                onDrawdown: [
+                    { level: 0.1, action: "Warning" },
+                    { level: 0.15, action: "Reduce Risk 50%" },
+                    { level: 0.2, action: "Stop Trading" }
+                ],
+                onConsecutiveLosses: [
+                    { count: calculationResults.calculations.maxConsecutiveLosses / 2, action: "Review Strategy" },
+                    { count: calculationResults.calculations.maxConsecutiveLosses, action: "Stop Trading" }
+                ],
+                onDailyPerformance: [
+                    { loss: 0.02, action: "Reduce Size" },
+                    { loss: 0.05, action: "Stop Trading" }
+                ]
+            };
+        }
+
+        // ===== FUNCIONES ADICIONALES =====
+        function optimizeAutomatically() {
+            showNotification('Optimización automática en progreso...', 'info');
+            
+            // Simular optimización
+            setTimeout(() => {
+                // Encontrar mejor fracción Kelly
+                let bestKelly = 0;
+                let bestScore = -Infinity;
+                
+                for (let kelly = 0.05; kelly <= 0.5; kelly += 0.05) {
+                    const growth = calculateExpectedGrowthForKelly(kelly);
+                    const ruin = calculateRuinProbabilityForKelly(kelly);
+                    const score = growth * 2 - ruin; // Ponderar crecimiento vs riesgo
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestKelly = kelly;
+                    }
+                }
+                
+                // Aplicar optimización
+                document.getElementById('kellyFractionSlider').value = Math.round(bestKelly * 100);
+                document.getElementById('kellyFractionSlider').dispatchEvent(new Event('input'));
+                
+                // Recalcular
+                calculateAccountManagement();
+                
+                showNotification(`Optimización completada. Kelly óptimo: ${(bestKelly * 100).toFixed(1)}%`, 'success');
+            }, 1500);
+        }
+
+        function startMonitoring() {
+            showNotification('Monitoreo en tiempo real iniciado', 'info');
+            document.getElementById('monitorBtn').innerHTML = '<span class="pulse">👁️</span> Monitoreando...';
+            document.getElementById('monitorBtn').disabled = true;
+            
+            // Simular monitoreo
+            setTimeout(() => {
+                document.getElementById('monitorBtn').innerHTML = '<span>👁️</span> Monitorear en Tiempo Real';
+                document.getElementById('monitorBtn').disabled = false;
+                showNotification('Monitoreo detenido', 'info');
+            }, 5000);
+        }
+
+        function resetAllData() {
+            if (confirm('¿Estás seguro de que quieres reiniciar todos los datos?')) {
+                importedData = null;
+                calculationResults = null;
+                accountData = {
+                    capital: 0,
+                    riskPerTrade: 0,
+                    winRate: 0,
+                    riskReward: 0,
+                    kellyFraction: 0.25,
+                    maxDrawdown: 20,
+                    strategy: 'moderate',
+                    volatility: 0.3
+                };
+                
+                // Resetear UI
+                document.getElementById('currentCapitalValue').textContent = '$0.00';
+                document.getElementById('currentRiskValue').textContent = '0%';
+                document.getElementById('ruinProbabilityValue').textContent = '0%';
+                document.getElementById('recommendedSizeValue').textContent = '$0';
+                document.getElementById('systemRecommendation').innerHTML = 
+                    'Importa datos del simulador paramétrico o configura manualmente para obtener recomendaciones personalizadas.';
+                
+                document.getElementById('fileName').textContent = 'Ninguno';
+                document.getElementById('fileType').textContent = 'N/A';
+                document.getElementById('dataStatus').textContent = 'Sin cargar';
+                document.getElementById('importStatus').textContent = 'Pendiente';
+                document.getElementById('importStatus').style.color = 'var(--neon-yellow)';
+                
+                document.getElementById('systemStatus').textContent = 'Esperando datos';
+                document.getElementById('systemStatus').style.color = 'var(--neon-yellow)';
+                
+                document.getElementById('calculateRiskBtn').disabled = true;
+                document.getElementById('exportBtn').disabled = true;
+                document.getElementById('optimizeBtn').disabled = true;
+                
+                // Resetear gráficas
+                Object.values(currentCharts).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+                currentCharts = {};
+                
+                document.querySelectorAll('.chart-placeholder').forEach(p => p.classList.remove('hidden'));
+                document.querySelectorAll('canvas').forEach(c => c.classList.add('hidden'));
+                
+                localStorage.removeItem(STORAGE_KEY);
+                
+                showNotification('Todos los datos han sido reiniciados', 'info');
+            }
+        }
+
+        function enableCalculationButton() {
+            if (importedData && accountData.capital > 0) {
+                document.getElementById('calculateRiskBtn').disabled = false;
+            }
+        }
+
+        // ===== UTILITIES =====
+        function showNotification(message, type = 'info') {
+            const oldNotifications = document.querySelectorAll('[data-notification]');
+            if (oldNotifications.length > 3) {
+                oldNotifications[0].remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.setAttribute('data-notification', 'true');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 4px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                border: 1px solid;
+                max-width: 400px;
+                word-wrap: break-word;
+                font-size: 14px;
+            `;
+            
+            const colors = {
+                success: { bg: 'rgba(0, 255, 136, 0.95)', border: 'rgba(0, 255, 136, 0.7)', icon: '✅' },
+                error: { bg: 'rgba(255, 85, 85, 0.95)', border: 'rgba(255, 85, 85, 0.7)', icon: '❌' },
+                warning: { bg: 'rgba(255, 193, 7, 0.95)', border: 'rgba(255, 193, 7, 0.7)', icon: '⚠️', color: '#000' },
+                info: { bg: 'rgba(0, 240, 255, 0.95)', border: 'rgba(0, 240, 255, 0.7)', icon: 'ℹ️' }
+            };
+            
+            const color = colors[type] || colors.info;
+            notification.style.background = color.bg;
+            notification.style.borderColor = color.border;
+            if (color.color) notification.style.color = color.color;
+            
+            notification.textContent = `${color.icon} ${message}`;
+            document.body.appendChild(notification);
+            
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOut {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        // ===== LOCAL STORAGE =====
+        function saveToLocalStorage() {
+            try {
+                const data = {
+                    importedData,
+                    accountData,
+                    calculationResults,
+                    currentStrategy,
+                    settings: {
+                        kellyFraction: document.getElementById('kellyFractionSlider').value,
+                        dynamicRisk: document.getElementById('dynamicRiskToggle').checked,
+                        volatilityAdjust: document.getElementById('volatilityAdjustToggle').checked,
+                        maxDrawdown: document.getElementById('maxDrawdownSlider').value
+                    },
+                    savedAt: new Date().toISOString()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (error) {
+                console.warn('Error guardando datos:', error);
+            }
+        }
+
+        function loadSavedData() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    
+                    importedData = data.importedData;
+                    accountData = data.accountData || accountData;
+                    calculationResults = data.calculationResults;
+                    currentStrategy = data.currentStrategy || 'moderate';
+                    
+                    if (data.settings) {
+                        document.getElementById('kellyFractionSlider').value = data.settings.kellyFraction || 25;
+                        document.getElementById('dynamicRiskToggle').checked = data.settings.dynamicRisk || false;
+                        document.getElementById('volatilityAdjustToggle').checked = data.settings.volatilityAdjust || false;
+                        document.getElementById('maxDrawdownSlider').value = data.settings.maxDrawdown || 20;
+                        
+                        // Trigger events
+                        document.getElementById('kellyFractionSlider').dispatchEvent(new Event('input'));
+                        document.getElementById('dynamicRiskToggle').dispatchEvent(new Event('change'));
+                        document.getElementById('volatilityAdjustToggle').dispatchEvent(new Event('change'));
+                    }
+                    
+                    if (importedData) {
+                        updateAccountDisplay();
+                        enableCalculationButton();
+                        
+                        if (calculationResults) {
+                            updateResultsUI();
+                            setTimeout(() => generateAllCharts(), 500);
+                        }
+                    }
+                    
+                    showNotification('Datos cargados desde almacenamiento local', 'info');
+                }
+            } catch (error) {
+                console.warn('Error cargando datos:', error);
+            }
+        }
+
+        // ===== MANEJO DE REDIMENSIÓN =====
+        window.addEventListener('resize', function() {
+            if (calculationResults) {
+                setTimeout(() => {
+                    Object.keys(currentCharts).forEach(chartType => {
+                        const chart = currentCharts[chartType];
+                        if (chart) {
+                            resizeChartCanvas(chartType + 'Chart');
+                            chart.resize();
+                            chart.update();
+                        }
+                    });
+                }, 300);
+            }
+        });
+
+        // Auto-guardar cuando se cierra la página
+        window.addEventListener('beforeunload', function() {
+            saveToLocalStorage();
+        });
+    </script>
+</body>
+</html>
